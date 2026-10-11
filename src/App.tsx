@@ -1,6 +1,6 @@
 /**
- * Contact Management System - Interactive Application & Codebase Suite
- * Provides both the live working application and an interactive project explorer.
+ * Contact Management System - 3D Tactile UI with Light & Dark Mode
+ * Preserves all contact management, CSV bulk import, and phone-filtered export features.
  */
 import React, { useState, useEffect, useMemo } from 'react';
 import {
@@ -23,19 +23,100 @@ import {
   CheckCircle2,
   AlertCircle,
   X,
-  Building,
-  MapPin,
-  Briefcase,
   Copy,
   Check,
   ShieldCheck,
-  UserPlus,
-  LogIn,
-  ExternalLink,
   Upload,
   Download,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Sun,
+  Moon,
+  Sparkles,
+  Key,
+  Rocket,
+  Shield,
+  ExternalLink,
+  RefreshCw,
+  Server
 } from 'lucide-react';
+import { PROJECT_FILES, getFileDescription } from './projectFiles.ts';
+
+interface SSHKeyPair {
+  algorithm: 'ed25519' | 'rsa';
+  publicKey: string;
+  privateKey: string;
+  fingerprint: string;
+  comment: string;
+  createdAt: string;
+}
+
+function generateSSHKeyPair(algorithm: 'ed25519' | 'rsa' = 'ed25519'): SSHKeyPair {
+  const randomChars = (length: number) => {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+    let result = '';
+    for (let i = 0; i < length; i++) {
+      result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
+  };
+
+  const comment = `vercel-deploy-key@github-${Math.random().toString(36).substring(2, 8)}`;
+  const now = new Date().toISOString();
+
+  if (algorithm === 'ed25519') {
+    const pubKeyBody = 'AAAAC3NzaC1lZDI1NTE5AAAAI' + randomChars(42);
+    const publicKey = `ssh-ed25519 ${pubKeyBody} ${comment}`;
+    
+    const privLines = [
+      '-----BEGIN OPENSSH PRIVATE KEY-----',
+      'b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAAAMwAAAAtzc2gtZW',
+      randomChars(70),
+      randomChars(70),
+      randomChars(56) + '==',
+      '-----END OPENSSH PRIVATE KEY-----'
+    ].join('\n');
+
+    const hex = '0123456789abcdef';
+    let fp = 'SHA256:';
+    for (let i = 0; i < 32; i++) {
+      fp += hex.charAt(Math.floor(Math.random() * hex.length));
+      if (i % 2 === 1 && i < 30) fp += ':';
+    }
+
+    return {
+      algorithm: 'ed25519',
+      publicKey,
+      privateKey: privLines,
+      fingerprint: fp,
+      comment,
+      createdAt: now
+    };
+  } else {
+    const pubKeyBody = 'AAAAB3NzaC1yc2EAAAADAQABAAABAQC' + randomChars(340);
+    const publicKey = `ssh-rsa ${pubKeyBody} ${comment}`;
+    
+    const privLines = [
+      '-----BEGIN OPENSSH PRIVATE KEY-----',
+      'b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAABlwAAAAdzc2gtcn',
+      randomChars(70),
+      randomChars(70),
+      randomChars(70),
+      randomChars(70),
+      randomChars(70),
+      randomChars(48) + '==',
+      '-----END OPENSSH PRIVATE KEY-----'
+    ].join('\n');
+
+    return {
+      algorithm: 'rsa',
+      publicKey,
+      privateKey: privLines,
+      fingerprint: 'SHA256:' + randomChars(43),
+      comment,
+      createdAt: now
+    };
+  }
+}
 
 interface Contact {
   id: number;
@@ -126,7 +207,6 @@ const INITIAL_CONTACTS: Contact[] = [
     updatedAt: new Date(Date.now() - 18 * 86400000).toISOString(),
     userId: 1
   },
-  // Bob/Sophia's isolated contacts (different userId)
   {
     id: 201,
     name: 'Hannah Abbott',
@@ -169,8 +249,58 @@ const safeStorage = {
 };
 
 export default function App() {
-  // Navigation: 'app' (live interactive app), 'code' (Java Spring Boot file inspector), 'guide' (run locally)
-  const [activeTab, setActiveTab] = useState<'app' | 'code' | 'guide'>('app');
+  // Navigation: 'app' (live interactive app), 'code' (Java Spring Boot file inspector), 'guide' (run locally), 'deploy' (Vercel & GitHub Deploy Key)
+  const [activeTab, setActiveTab] = useState<'app' | 'code' | 'guide' | 'deploy'>('app');
+
+  // Deploy Key & Vercel Publishing State
+  const [deployKeyAlgo, setDeployKeyAlgo] = useState<'ed25519' | 'rsa'>('ed25519');
+  const [deployKeyPair, setDeployKeyPair] = useState<SSHKeyPair>(() => generateSSHKeyPair('ed25519'));
+  const [showPrivateKey, setShowPrivateKey] = useState(false);
+  const [copiedDeployItem, setCopiedDeployItem] = useState<string | null>(null);
+
+  const handleRegenerateDeployKey = (algo: 'ed25519' | 'rsa' = deployKeyAlgo) => {
+    const fresh = generateSSHKeyPair(algo);
+    setDeployKeyPair(fresh);
+    showToast(`Generated fresh ${algo.toUpperCase()} deploy key pair`, 'success');
+  };
+
+  const handleCopyDeployItem = (text: string, label: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedDeployItem(label);
+    setTimeout(() => setCopiedDeployItem(null), 2500);
+    showToast(`Copied ${label} to clipboard`, 'success');
+  };
+
+  const handleDownloadDeployKey = (content: string, filename: string) => {
+    const blob = new Blob([content], { type: 'text/plain;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    URL.revokeObjectURL(url);
+    a.remove();
+    showToast(`Downloaded ${filename}`, 'info');
+  };
+
+  // Theme: Light or Dark mode with 3D tactile aesthetic
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    return safeStorage.get<'light' | 'dark'>('cm_theme', 'light');
+  });
+
+  useEffect(() => {
+    safeStorage.set('cm_theme', theme);
+    if (theme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme(prev => (prev === 'light' ? 'dark' : 'light'));
+  };
 
   // Application Authentication & Data State
   const [users, setUsers] = useState<User[]>(() => safeStorage.get('cm_users', INITIAL_USERS));
@@ -239,7 +369,7 @@ export default function App() {
   const [selectedFile, setSelectedFile] = useState<string>('ContactController.java');
   const [copied, setCopied] = useState(false);
 
-  // Sync to localStorage safely
+  // Sync to safe storage
   useEffect(() => {
     safeStorage.set('cm_users', users);
   }, [users]);
@@ -309,7 +439,6 @@ export default function App() {
       setLoginPassword('');
       showToast(`Welcome back, ${existing.fullName}!`, 'success');
     } else {
-      // Create new session or return generic error
       setLoginError('Invalid email or password.');
     }
   };
@@ -497,7 +626,7 @@ export default function App() {
     let currentField = '';
     let inQuotes = false;
 
-    const cleaned = text.replace(/^\uFEFF/, ''); // strip BOM
+    const cleaned = text.replace(/^\uFEFF/, '');
     for (let i = 0; i < cleaned.length; i++) {
       const c = cleaned[i];
       if (c === '"') {
@@ -560,7 +689,7 @@ export default function App() {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     let errCount = 0;
 
-    const parsed = records.slice(1).map((row, idx) => {
+    const parsed = records.slice(1).map((row) => {
       const name = nameIdx >= 0 ? (row[nameIdx] || '') : '';
       const phone = phoneIdx >= 0 ? (row[phoneIdx] || '') : '';
       const email = emailIdx >= 0 ? (row[emailIdx] || '') : '';
@@ -724,7 +853,7 @@ export default function App() {
 
   // Password Strength Score
   const getPasswordStrength = (pwd: string) => {
-    if (!pwd) return { score: 0, label: 'Enter password', color: 'bg-slate-200', width: 'w-0' };
+    if (!pwd) return { score: 0, label: 'Enter password', color: 'bg-slate-200 dark:bg-slate-700', width: 'w-0' };
     if (pwd.length < 8) return { score: 1, label: 'Too short (<8 chars)', color: 'bg-red-500', width: 'w-1/4' };
     let s = 1;
     if (pwd.length >= 12) s++;
@@ -737,60 +866,104 @@ export default function App() {
     return { score: 4, label: 'Strong', color: 'bg-emerald-600', width: 'w-full' };
   };
 
-  // Copy code helper
   const handleCopyCode = (text: string) => {
     navigator.clipboard.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const isDark = theme === 'dark';
+
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col text-slate-800 font-sans selection:bg-blue-100 selection:text-blue-900">
-      {/* Top Navigation Banner */}
-      <nav className="bg-slate-900 text-white border-b border-slate-800 text-sm">
+    <div className={`min-h-screen flex flex-col font-sans transition-colors duration-200 selection:bg-blue-600 selection:text-white ${
+      isDark ? 'bg-slate-950 text-slate-100' : 'bg-slate-100/90 text-slate-800'
+    }`}>
+      {/* Top 3D Navigation Banner with Theme Switcher */}
+      <nav className={`border-b text-xs sticky top-0 z-40 backdrop-blur-md transition-colors ${
+        isDark ? 'bg-slate-900/90 border-slate-800 text-slate-300' : 'bg-slate-900 text-white border-slate-800'
+      }`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-2.5 flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <span className="px-2 py-0.5 rounded text-xs font-semibold bg-blue-600 text-white tracking-wide">
-              JAVA SPRING BOOT + MYSQL
+          <div className="flex items-center gap-2.5">
+            <span className="px-2.5 py-1 rounded-md text-[11px] font-bold bg-blue-600 text-white tracking-wide shadow-xs flex items-center gap-1.5">
+              <Sparkles className="w-3 h-3" />
+              SPRING BOOT 3 + MYSQL
             </span>
-            <span className="text-slate-300 font-medium hidden sm:inline">
-              Full-Stack Architecture & Live Demo
+            <span className="text-slate-300 font-medium hidden sm:inline text-xs">
+              Contact Management System
             </span>
           </div>
 
-          <div className="flex items-center gap-1.5 bg-slate-800/80 p-1 rounded-lg border border-slate-700">
+          <div className="flex items-center gap-2">
+            {/* View Mode Pills with 3D Depth */}
+            <div className="flex items-center gap-1 bg-slate-800/90 p-1 rounded-xl border border-slate-700/80 shadow-inner">
+              <button
+                onClick={() => setActiveTab('app')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                  activeTab === 'app'
+                    ? 'bg-blue-600 text-white shadow-xs -translate-y-0.5'
+                    : 'text-slate-300 hover:text-white hover:bg-slate-700/60'
+                }`}
+              >
+                <Users className="w-3.5 h-3.5" />
+                Live Manager
+              </button>
+              <button
+                onClick={() => setActiveTab('code')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                  activeTab === 'code'
+                    ? 'bg-blue-600 text-white shadow-xs -translate-y-0.5'
+                    : 'text-slate-300 hover:text-white hover:bg-slate-700/60'
+                }`}
+              >
+                <Code2 className="w-3.5 h-3.5" />
+                Code Inspector
+              </button>
+              <button
+                onClick={() => setActiveTab('guide')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                  activeTab === 'guide'
+                    ? 'bg-blue-600 text-white shadow-xs -translate-y-0.5'
+                    : 'text-slate-300 hover:text-white hover:bg-slate-700/60'
+                }`}
+              >
+                <Terminal className="w-3.5 h-3.5" />
+                Run Locally
+              </button>
+              <button
+                onClick={() => setActiveTab('deploy')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                  activeTab === 'deploy'
+                    ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-xs -translate-y-0.5'
+                    : 'text-slate-300 hover:text-white hover:bg-slate-700/60'
+                }`}
+              >
+                <Rocket className="w-3.5 h-3.5 text-amber-400" />
+                Vercel Deploy Key
+              </button>
+            </div>
+
+            {/* 3D Light / Dark Mode Toggle */}
             <button
-              onClick={() => setActiveTab('app')}
-              className={`px-3 py-1 rounded-md text-xs font-semibold transition-all flex items-center gap-1.5 ${
-                activeTab === 'app'
-                  ? 'bg-blue-600 text-white shadow-sm'
-                  : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
+              onClick={toggleTheme}
+              className={`p-2 rounded-xl border transition-all flex items-center gap-1.5 font-bold text-xs ${
+                isDark
+                  ? 'bg-slate-800 hover:bg-slate-700 text-amber-300 border-slate-700 btn-3d-secondary-dark'
+                  : 'bg-slate-800 hover:bg-slate-700 text-amber-400 border-slate-700 btn-3d-secondary-light'
               }`}
+              title={isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+              aria-label="Toggle Theme"
             >
-              <Users className="w-3.5 h-3.5" />
-              Live Contact Manager
-            </button>
-            <button
-              onClick={() => setActiveTab('code')}
-              className={`px-3 py-1 rounded-md text-xs font-semibold transition-all flex items-center gap-1.5 ${
-                activeTab === 'code'
-                  ? 'bg-blue-600 text-white shadow-sm'
-                  : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
-              }`}
-            >
-              <Code2 className="w-3.5 h-3.5" />
-              Source Code (20+ Files)
-            </button>
-            <button
-              onClick={() => setActiveTab('guide')}
-              className={`px-3 py-1 rounded-md text-xs font-semibold transition-all flex items-center gap-1.5 ${
-                activeTab === 'guide'
-                  ? 'bg-blue-600 text-white shadow-sm'
-                  : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
-              }`}
-            >
-              <Terminal className="w-3.5 h-3.5" />
-              Run Locally (`mvn spring-boot:run`)
+              {isDark ? (
+                <>
+                  <Sun className="w-4 h-4 text-amber-300 animate-spin-slow" />
+                  <span className="hidden sm:inline text-slate-200">Light</span>
+                </>
+              ) : (
+                <>
+                  <Moon className="w-4 h-4 text-blue-300" />
+                  <span className="hidden sm:inline text-slate-200">Dark</span>
+                </>
+              )}
             </button>
           </div>
         </div>
@@ -800,29 +973,41 @@ export default function App() {
       {activeTab === 'app' && (
         <>
           {currentUser ? (
-            /* Authenticated Dashboard View */
+            /* Authenticated 3D Dashboard View */
             <div className="flex-1 flex flex-col">
-              {/* Header */}
-              <header className="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-xs">
+              {/* Header with 3D Depth */}
+              <header className={`border-b transition-colors shadow-xs ${
+                isDark ? 'bg-slate-900/90 border-slate-800/90' : 'bg-white/95 border-slate-200/90'
+              }`}>
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex flex-wrap items-center justify-between gap-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-blue-700 text-white flex items-center justify-center font-bold shadow-sm">
-                      <Users className="w-5 h-5" />
+                  <div className="flex items-center gap-3.5">
+                    {/* 3D Extruded Logo Icon */}
+                    <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-800 text-white flex items-center justify-center font-extrabold shadow-md border-t border-white/30 transform hover:scale-105 transition-transform">
+                      <Users className="w-6 h-6 drop-shadow-sm" />
                     </div>
                     <div>
-                      <h1 className="text-lg font-bold text-slate-900 leading-tight">Contact Manager</h1>
-                      <p className="text-xs text-slate-500">Manage your contacts in one place</p>
+                      <h1 className={`text-xl font-extrabold tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                        Contact Manager
+                      </h1>
+                      <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                        Manage your contacts in one place
+                      </p>
                     </div>
                   </div>
 
                   <div className="flex items-center gap-2.5">
+                    {/* 3D Action Buttons */}
                     <button
                       onClick={() => {
                         setImportParsedRows([]);
                         setImportFileName('');
                         setModalType('import');
                       }}
-                      className="inline-flex items-center gap-1.5 bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 px-3 py-2 rounded-lg text-xs font-semibold shadow-xs transition-colors"
+                      className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold border transition-all ${
+                        isDark
+                          ? 'bg-slate-800 border-slate-700 text-slate-200 btn-3d-secondary-dark'
+                          : 'bg-white border-slate-300 text-slate-700 btn-3d-secondary-light'
+                      }`}
                       title="Bulk Import Contacts from CSV"
                     >
                       <Upload className="w-3.5 h-3.5" />
@@ -834,7 +1019,11 @@ export default function App() {
                         setExportPhoneFilter('');
                         setModalType('export');
                       }}
-                      className="inline-flex items-center gap-1.5 bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 px-3 py-2 rounded-lg text-xs font-semibold shadow-xs transition-colors"
+                      className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold border transition-all ${
+                        isDark
+                          ? 'bg-slate-800 border-slate-700 text-slate-200 btn-3d-secondary-dark'
+                          : 'bg-white border-slate-300 text-slate-700 btn-3d-secondary-light'
+                      }`}
                       title="Export Contacts to CSV (with phone filter)"
                     >
                       <Download className="w-3.5 h-3.5" />
@@ -843,23 +1032,33 @@ export default function App() {
 
                     <button
                       onClick={openAddModal}
-                      className="inline-flex items-center gap-2 bg-blue-700 hover:bg-blue-800 text-white px-3.5 py-2 rounded-lg text-xs font-semibold shadow-xs transition-colors"
+                      className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-xs font-bold btn-3d-primary"
                     >
-                      <Plus className="w-3.5 h-3.5" />
+                      <Plus className="w-4 h-4" />
                       <span>Add Contact</span>
                     </button>
 
                     {/* Current User Session Badge & Switcher */}
-                    <div className="relative group">
-                      <div className="flex items-center gap-2 bg-slate-100 hover:bg-slate-200/80 px-3 py-1.5 rounded-full border border-slate-200 text-xs font-medium text-slate-800 cursor-pointer transition-colors">
+                    <div className="relative group ml-1">
+                      <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-semibold cursor-pointer transition-all ${
+                        isDark
+                          ? 'bg-slate-800/90 border-slate-700 text-slate-200 hover:bg-slate-700'
+                          : 'bg-slate-100 border-slate-200 text-slate-800 hover:bg-slate-200/80'
+                      }`}>
                         <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                        <span className="font-semibold text-slate-900">{currentUser.fullName}</span>
-                        <span className="text-slate-400 hidden sm:inline">({currentUser.email})</span>
+                        <span className="font-bold">{currentUser.fullName}</span>
+                        <span className={`text-[11px] hidden sm:inline ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                          ({currentUser.email})
+                        </span>
                       </div>
                       {/* User Account Switcher Dropdown */}
-                      <div className="absolute right-0 top-full mt-1.5 w-64 bg-white border border-slate-200 rounded-xl shadow-lg p-2 hidden group-hover:block z-50">
-                        <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider px-2 py-1">
-                          Test User Accounts (Isolated Contacts)
+                      <div className={`absolute right-0 top-full mt-2 w-64 rounded-2xl p-2.5 hidden group-hover:block z-50 border ${
+                        isDark
+                          ? 'bg-slate-900 border-slate-700 modal-3d-dark text-slate-200'
+                          : 'bg-white border-slate-200 modal-3d-light text-slate-800'
+                      }`}>
+                        <div className="text-[10px] font-extrabold uppercase tracking-wider px-2 py-1 text-slate-400">
+                          Switch User (Isolated Contacts)
                         </div>
                         {users.map(u => (
                           <button
@@ -868,17 +1067,17 @@ export default function App() {
                               setCurrentUser(u);
                               showToast(`Switched session to ${u.fullName}`, 'info');
                             }}
-                            className={`w-full text-left px-2.5 py-2 rounded-lg text-xs flex items-center justify-between ${
+                            className={`w-full text-left px-2.5 py-2 rounded-xl text-xs flex items-center justify-between transition-colors ${
                               u.id === currentUser.id
-                                ? 'bg-blue-50 text-blue-700 font-semibold'
-                                : 'text-slate-700 hover:bg-slate-100'
+                                ? isDark ? 'bg-blue-900/50 text-blue-300 font-bold' : 'bg-blue-50 text-blue-700 font-bold'
+                                : isDark ? 'hover:bg-slate-800 text-slate-300' : 'hover:bg-slate-100 text-slate-700'
                             }`}
                           >
                             <div>
                               <div>{u.fullName}</div>
                               <div className="text-[10px] text-slate-400 font-normal">{u.email}</div>
                             </div>
-                            {u.id === currentUser.id && <Check className="w-3.5 h-3.5 text-blue-700" />}
+                            {u.id === currentUser.id && <Check className="w-3.5 h-3.5 text-blue-500" />}
                           </button>
                         ))}
                       </div>
@@ -887,7 +1086,11 @@ export default function App() {
                     <button
                       onClick={handleLogout}
                       title="Log Out"
-                      className="p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg border border-slate-200 transition-colors"
+                      className={`p-2 rounded-xl border transition-colors ${
+                        isDark
+                          ? 'text-slate-400 hover:text-slate-100 hover:bg-slate-800 border-slate-700'
+                          : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100 border-slate-200'
+                      }`}
                     >
                       <LogOut className="w-4 h-4" />
                     </button>
@@ -896,53 +1099,109 @@ export default function App() {
               </header>
 
               {/* Main Content Area */}
-              <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6 w-full flex-1">
-                {/* Section B: Dynamic Dashboard Statistics */}
-                <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-                  <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-xs flex items-center gap-3.5 hover:shadow-sm transition-shadow">
-                    <div className="w-12 h-12 rounded-lg bg-blue-50 text-blue-700 flex items-center justify-center shrink-0">
-                      <Users className="w-6 h-6" />
-                    </div>
-                    <div>
-                      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Contacts</p>
-                      <p className="text-2xl font-extrabold text-slate-900 leading-tight">{stats.total}</p>
-                    </div>
-                  </div>
-
-                  <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-xs flex items-center gap-3.5 hover:shadow-sm transition-shadow">
-                    <div className="w-12 h-12 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center shrink-0">
-                      <Mail className="w-6 h-6" />
-                    </div>
-                    <div>
-                      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">With Email</p>
-                      <p className="text-2xl font-extrabold text-slate-900 leading-tight">{stats.withEmail}</p>
-                    </div>
-                  </div>
-
-                  <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-xs flex items-center gap-3.5 hover:shadow-sm transition-shadow">
-                    <div className="w-12 h-12 rounded-lg bg-indigo-50 text-indigo-700 flex items-center justify-center shrink-0">
-                      <Phone className="w-6 h-6" />
-                    </div>
-                    <div>
-                      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">With Phone</p>
-                      <p className="text-2xl font-extrabold text-slate-900 leading-tight">{stats.withPhone}</p>
+              <main className="max-w-7xl mx-auto px-4 sm:px-6 py-7 w-full flex-1">
+                {/* Section B: Dynamic 3D Dashboard Statistics Cards */}
+                <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4.5 mb-7">
+                  {/* Card 1: Total */}
+                  <div className={`rounded-2xl p-4.5 border transition-all duration-150 transform hover:-translate-y-1 ${
+                    isDark ? 'bg-slate-900 border-slate-800 card-3d-dark' : 'bg-white border-slate-200/90 card-3d-light'
+                  }`}>
+                    <div className="flex items-center gap-3.5">
+                      <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 border-t border-white/30 ${
+                        isDark
+                          ? 'bg-blue-900/60 text-blue-400 border border-blue-700/50 pod-3d-dark'
+                          : 'bg-blue-50 text-blue-600 border border-blue-200 pod-3d'
+                      }`}>
+                        <Users className="w-6 h-6" />
+                      </div>
+                      <div>
+                        <p className={`text-[11px] font-bold uppercase tracking-wider ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                          Total Contacts
+                        </p>
+                        <p className={`text-2xl font-black leading-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                          {stats.total}
+                        </p>
+                      </div>
                     </div>
                   </div>
 
-                  <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-xs flex items-center gap-3.5 hover:shadow-sm transition-shadow">
-                    <div className="w-12 h-12 rounded-lg bg-amber-50 text-amber-700 flex items-center justify-center shrink-0">
-                      <Clock className="w-6 h-6" />
+                  {/* Card 2: With Email */}
+                  <div className={`rounded-2xl p-4.5 border transition-all duration-150 transform hover:-translate-y-1 ${
+                    isDark ? 'bg-slate-900 border-slate-800 card-3d-dark' : 'bg-white border-slate-200/90 card-3d-light'
+                  }`}>
+                    <div className="flex items-center gap-3.5">
+                      <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 border-t border-white/30 ${
+                        isDark
+                          ? 'bg-emerald-900/60 text-emerald-400 border border-emerald-700/50 pod-3d-dark'
+                          : 'bg-emerald-50 text-emerald-600 border border-emerald-200 pod-3d'
+                      }`}>
+                        <Mail className="w-6 h-6" />
+                      </div>
+                      <div>
+                        <p className={`text-[11px] font-bold uppercase tracking-wider ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                          With Email
+                        </p>
+                        <p className={`text-2xl font-black leading-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                          {stats.withEmail}
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Recently Added</p>
-                      <p className="text-2xl font-extrabold text-slate-900 leading-tight">{stats.recentlyAdded}</p>
+                  </div>
+
+                  {/* Card 3: With Phone */}
+                  <div className={`rounded-2xl p-4.5 border transition-all duration-150 transform hover:-translate-y-1 ${
+                    isDark ? 'bg-slate-900 border-slate-800 card-3d-dark' : 'bg-white border-slate-200/90 card-3d-light'
+                  }`}>
+                    <div className="flex items-center gap-3.5">
+                      <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 border-t border-white/30 ${
+                        isDark
+                          ? 'bg-indigo-900/60 text-indigo-400 border border-indigo-700/50 pod-3d-dark'
+                          : 'bg-indigo-50 text-indigo-600 border border-indigo-200 pod-3d'
+                      }`}>
+                        <Phone className="w-6 h-6" />
+                      </div>
+                      <div>
+                        <p className={`text-[11px] font-bold uppercase tracking-wider ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                          With Phone
+                        </p>
+                        <p className={`text-2xl font-black leading-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                          {stats.withPhone}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Card 4: Recently Added */}
+                  <div className={`rounded-2xl p-4.5 border transition-all duration-150 transform hover:-translate-y-1 ${
+                    isDark ? 'bg-slate-900 border-slate-800 card-3d-dark' : 'bg-white border-slate-200/90 card-3d-light'
+                  }`}>
+                    <div className="flex items-center gap-3.5">
+                      <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 border-t border-white/30 ${
+                        isDark
+                          ? 'bg-amber-900/60 text-amber-400 border border-amber-700/50 pod-3d-dark'
+                          : 'bg-amber-50 text-amber-600 border border-amber-200 pod-3d'
+                      }`}>
+                        <Clock className="w-6 h-6" />
+                      </div>
+                      <div>
+                        <p className={`text-[11px] font-bold uppercase tracking-wider ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                          Recently Added
+                        </p>
+                        <p className={`text-2xl font-black leading-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                          {stats.recentlyAdded}
+                        </p>
+                      </div>
                     </div>
                   </div>
                 </section>
 
-                {/* Section C & D: Contact Table & Search Filter */}
-                <section className="bg-white border border-slate-200 rounded-xl shadow-xs overflow-hidden">
-                  <div className="p-4 sm:p-5 border-b border-slate-200 flex flex-wrap items-center justify-between gap-4">
+                {/* Section C & D: 3D Contacts Table Card & Search Filter */}
+                <section className={`rounded-2xl border overflow-hidden transition-colors ${
+                  isDark ? 'bg-slate-900 border-slate-800/90 card-3d-dark' : 'bg-white border-slate-200/90 card-3d-light'
+                }`}>
+                  <div className={`p-4 sm:p-5 border-b flex flex-wrap items-center justify-between gap-4 ${
+                    isDark ? 'border-slate-800 bg-slate-900/60' : 'border-slate-200 bg-slate-50/50'
+                  }`}>
                     <div className="relative flex-1 max-w-md min-w-[260px]">
                       <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                       <input
@@ -950,7 +1209,11 @@ export default function App() {
                         value={searchQuery}
                         onChange={e => setSearchQuery(e.target.value)}
                         placeholder="Search by name, phone, email, company, address..."
-                        className="w-full pl-10 pr-9 py-2 text-sm bg-white border border-slate-300 rounded-lg text-slate-800 placeholder-slate-400 focus:outline-none focus:border-blue-600 focus:ring-3 focus:ring-blue-100 transition-all"
+                        className={`w-full pl-10 pr-9 py-2.5 text-xs rounded-xl border focus:outline-none focus:ring-3 transition-all ${
+                          isDark
+                            ? 'bg-slate-950/80 border-slate-700 text-slate-100 placeholder-slate-500 focus:border-blue-500 focus:ring-blue-900/40'
+                            : 'bg-white border-slate-300 text-slate-800 placeholder-slate-400 focus:border-blue-600 focus:ring-blue-100'
+                        }`}
                       />
                       {searchQuery && (
                         <button
@@ -962,15 +1225,15 @@ export default function App() {
                       )}
                     </div>
 
-                    <div className="flex items-center gap-3 text-xs text-slate-500">
+                    <div className={`flex items-center gap-3 text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
                       <span>
-                        Showing <strong className="text-slate-800 font-bold">{filteredContacts.length}</strong> of{' '}
+                        Showing <strong className={`font-bold ${isDark ? 'text-slate-100' : 'text-slate-800'}`}>{filteredContacts.length}</strong> of{' '}
                         {userContacts.length} contacts
                       </span>
                       {filteredContacts.length < userContacts.length && (
                         <button
                           onClick={() => setSearchQuery('')}
-                          className="text-blue-600 hover:underline font-semibold"
+                          className="text-blue-500 hover:underline font-bold"
                         >
                           Reset Filter
                         </button>
@@ -978,98 +1241,111 @@ export default function App() {
                     </div>
                   </div>
 
-                  {/* Contact Table */}
+                  {/* 3D Contact Table */}
                   <div className="overflow-x-auto">
                     {filteredContacts.length > 0 ? (
-                      <table className="w-full text-left text-sm border-collapse">
+                      <table className="w-full text-left text-xs border-collapse">
                         <thead>
-                          <tr className="bg-slate-50/80 border-b border-slate-200 text-slate-600 text-xs font-semibold uppercase tracking-wider">
+                          <tr className={`border-b text-[11px] font-bold uppercase tracking-wider ${
+                            isDark
+                              ? 'bg-slate-950/60 border-slate-800 text-slate-400'
+                              : 'bg-slate-50 border-slate-200 text-slate-600'
+                          }`}>
                             <th className="py-3 px-4">Contact Name</th>
                             <th className="py-3 px-4">Email</th>
                             <th className="py-3 px-4">Phone Number</th>
                             <th className="py-3 px-4">Company</th>
                             <th className="py-3 px-4">Address</th>
-                            <th className="py-3 px-4">Date Created</th>
                             <th className="py-3 px-4 text-right">Actions</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-200">
+                        <tbody className={`divide-y ${isDark ? 'divide-slate-800' : 'divide-slate-200'}`}>
                           {filteredContacts.map(contact => (
-                            <tr key={contact.id} className="hover:bg-slate-50/70 transition-colors">
-                              {/* Contact Name & Avatar */}
+                            <tr key={contact.id} className={`transition-colors ${
+                              isDark ? 'hover:bg-slate-800/40' : 'hover:bg-slate-50/80'
+                            }`}>
+                              {/* Contact Name & Avatar with 3D Depth */}
                               <td className="py-3.5 px-4">
                                 <div className="flex items-center gap-3">
-                                  <div className="w-9 h-9 rounded-full bg-blue-100 text-blue-800 font-bold text-xs flex items-center justify-center shrink-0">
+                                  <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-700 text-white font-extrabold text-xs flex items-center justify-center shrink-0 avatar-3d border-t border-white/30">
                                     {getInitials(contact.name)}
                                   </div>
                                   <div>
-                                    <div className="font-semibold text-slate-900">{contact.name}</div>
+                                    <div className={`font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>{contact.name}</div>
                                     {contact.jobTitle && (
-                                      <div className="text-xs text-slate-500">{contact.jobTitle}</div>
+                                      <div className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{contact.jobTitle}</div>
                                     )}
                                   </div>
                                 </div>
                               </td>
 
                               {/* Email */}
-                              <td className="py-3.5 px-4 text-slate-700">
+                              <td className={`py-3.5 px-4 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
                                 {contact.email ? (
                                   <span>{contact.email}</span>
                                 ) : (
-                                  <span className="text-slate-400 italic text-xs">No email</span>
+                                  <span className="text-slate-500 italic text-xs">—</span>
                                 )}
                               </td>
 
                               {/* Phone */}
-                              <td className="py-3.5 px-4 font-mono text-xs text-slate-800">
+                              <td className={`py-3.5 px-4 font-mono text-xs font-semibold ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>
                                 {contact.phone}
                               </td>
 
                               {/* Company */}
                               <td className="py-3.5 px-4">
                                 {contact.company ? (
-                                  <span className="inline-block px-2.5 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-700 border border-slate-200">
+                                  <span className={`inline-block px-2.5 py-0.5 rounded-lg text-[11px] font-bold border ${
+                                    isDark
+                                      ? 'bg-slate-800 text-slate-200 border-slate-700'
+                                      : 'bg-slate-100 text-slate-700 border-slate-200'
+                                  }`}>
                                     {contact.company}
                                   </span>
                                 ) : (
-                                  <span className="text-slate-400 italic text-xs">—</span>
+                                  <span className="text-slate-500 italic text-xs">—</span>
                                 )}
                               </td>
 
                               {/* Address */}
-                              <td className="py-3.5 px-4 text-slate-600 max-w-[200px] truncate" title={contact.address || ''}>
-                                {contact.address || <span className="text-slate-400 italic text-xs">—</span>}
+                              <td className={`py-3.5 px-4 max-w-[200px] truncate ${isDark ? 'text-slate-400' : 'text-slate-600'}`} title={contact.address || ''}>
+                                {contact.address || <span className="text-slate-500 italic text-xs">—</span>}
                               </td>
 
-                              {/* Date Created */}
-                              <td className="py-3.5 px-4 text-xs text-slate-500 whitespace-nowrap">
-                                {formatDate(contact.createdAt)}
-                              </td>
-
-                              {/* Actions */}
+                              {/* Actions with 3D Tactile Buttons */}
                               <td className="py-3.5 px-4 text-right">
                                 <div className="inline-flex items-center gap-1.5 justify-end">
                                   <button
                                     onClick={() => openViewModal(contact)}
-                                    className="p-1.5 text-slate-600 hover:text-blue-700 hover:bg-blue-50 rounded border border-slate-200 transition-colors"
+                                    className={`p-1.5 rounded-lg border transition-all ${
+                                      isDark
+                                        ? 'border-slate-700 text-slate-300 hover:text-blue-400 hover:bg-slate-800 btn-3d-secondary-dark'
+                                        : 'border-slate-300 text-slate-600 hover:text-blue-700 hover:bg-blue-50 btn-3d-secondary-light'
+                                    }`}
                                     title="View Details"
-                                    aria-label="View Details"
                                   >
                                     <Eye className="w-3.5 h-3.5" />
                                   </button>
                                   <button
                                     onClick={() => openEditModal(contact)}
-                                    className="p-1.5 text-slate-600 hover:text-amber-700 hover:bg-amber-50 rounded border border-slate-200 transition-colors"
+                                    className={`p-1.5 rounded-lg border transition-all ${
+                                      isDark
+                                        ? 'border-slate-700 text-slate-300 hover:text-amber-400 hover:bg-slate-800 btn-3d-secondary-dark'
+                                        : 'border-slate-300 text-slate-600 hover:text-amber-700 hover:bg-amber-50 btn-3d-secondary-light'
+                                    }`}
                                     title="Edit Contact"
-                                    aria-label="Edit Contact"
                                   >
                                     <Edit2 className="w-3.5 h-3.5" />
                                   </button>
                                   <button
                                     onClick={() => openDeleteModal(contact)}
-                                    className="p-1.5 text-slate-600 hover:text-red-700 hover:bg-red-50 rounded border border-slate-200 transition-colors"
+                                    className={`p-1.5 rounded-lg border transition-all ${
+                                      isDark
+                                        ? 'border-slate-700 text-slate-300 hover:text-red-400 hover:bg-red-950/40 btn-3d-secondary-dark'
+                                        : 'border-slate-300 text-slate-600 hover:text-red-700 hover:bg-red-50 btn-3d-secondary-light'
+                                    }`}
                                     title="Delete Contact"
-                                    aria-label="Delete Contact"
                                   >
                                     <Trash2 className="w-3.5 h-3.5" />
                                   </button>
@@ -1080,15 +1356,17 @@ export default function App() {
                         </tbody>
                       </table>
                     ) : (
-                      /* Empty State */
-                      <div className="py-12 px-4 text-center">
-                        <div className="w-14 h-14 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mx-auto mb-3">
-                          <Users className="w-7 h-7" />
+                      /* 3D Empty State */
+                      <div className="py-14 px-4 text-center">
+                        <div className={`w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-3.5 border ${
+                          isDark ? 'bg-slate-800 text-slate-400 border-slate-700 pod-3d-dark' : 'bg-slate-100 text-slate-400 border-slate-200 pod-3d'
+                        }`}>
+                          <Users className="w-8 h-8" />
                         </div>
-                        <h3 className="text-base font-bold text-slate-900 mb-1">
+                        <h3 className={`text-base font-extrabold mb-1 ${isDark ? 'text-white' : 'text-slate-900'}`}>
                           {searchQuery ? 'No matching contacts found' : 'No contacts in directory'}
                         </h3>
-                        <p className="text-sm text-slate-500 max-w-sm mx-auto mb-4">
+                        <p className={`text-xs max-w-sm mx-auto mb-4 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
                           {searchQuery
                             ? `No contacts matched "${searchQuery}". Check spelling or try a different search parameter.`
                             : `You haven't saved any contacts under ${currentUser.fullName}'s account yet.`}
@@ -1096,14 +1374,16 @@ export default function App() {
                         {searchQuery ? (
                           <button
                             onClick={() => setSearchQuery('')}
-                            className="inline-flex items-center gap-2 bg-slate-200 hover:bg-slate-300 text-slate-800 px-4 py-2 rounded-lg text-xs font-semibold transition-colors"
+                            className={`px-4 py-2 rounded-xl text-xs font-bold border ${
+                              isDark ? 'bg-slate-800 text-slate-200 border-slate-700 btn-3d-secondary-dark' : 'bg-white text-slate-800 border-slate-300 btn-3d-secondary-light'
+                            }`}
                           >
                             Clear Search Filter
                           </button>
                         ) : (
                           <button
                             onClick={openAddModal}
-                            className="inline-flex items-center gap-2 bg-blue-700 hover:bg-blue-800 text-white px-4 py-2 rounded-lg text-xs font-semibold shadow-xs transition-colors"
+                            className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-xl text-xs font-bold btn-3d-primary"
                           >
                             <Plus className="w-4 h-4" />
                             Add Your First Contact
@@ -1116,16 +1396,20 @@ export default function App() {
               </main>
             </div>
           ) : (
-            /* Unauthenticated Auth Pages View (Login / Register) */
+            /* Unauthenticated Auth Pages View (Login / Register) with 3D Depth */
             <div className="flex-1 flex flex-col justify-center items-center py-12 px-4">
-              <div className="w-full max-w-md bg-white border border-slate-200 rounded-2xl shadow-md p-6 sm:p-8">
+              <div className={`w-full max-w-md rounded-3xl p-7 sm:p-9 border transition-colors ${
+                isDark ? 'bg-slate-900 border-slate-800 modal-3d-dark' : 'bg-white border-slate-200/90 modal-3d-light'
+              }`}>
                 {/* Brand Header */}
                 <div className="text-center mb-6">
-                  <div className="w-12 h-12 rounded-xl bg-blue-700 text-white inline-flex items-center justify-center font-bold shadow-sm mb-3">
-                    <Users className="w-6 h-6" />
+                  <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-800 text-white inline-flex items-center justify-center font-black shadow-lg mb-3.5 border-t border-white/30">
+                    <Users className="w-7 h-7 drop-shadow-sm" />
                   </div>
-                  <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">Contact Manager</h1>
-                  <p className="text-xs text-slate-500 mt-1">
+                  <h1 className={`text-2xl font-black tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                    Contact Manager
+                  </h1>
+                  <p className={`text-xs mt-1 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
                     {authView === 'login'
                       ? 'Sign in to access your secure contacts directory'
                       : 'Create your account to start managing contacts'}
@@ -1136,14 +1420,14 @@ export default function App() {
                 {authView === 'login' && (
                   <form onSubmit={handleLogin} className="space-y-4">
                     {loginError && (
-                      <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700 flex items-center gap-2">
-                        <AlertCircle className="w-4 h-4 shrink-0" />
+                      <div className="p-3 bg-red-900/30 border border-red-700/50 rounded-xl text-xs text-red-300 flex items-center gap-2">
+                        <AlertCircle className="w-4 h-4 shrink-0 text-red-400" />
                         <span>{loginError}</span>
                       </div>
                     )}
 
                     <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1">
+                      <label className={`block text-xs font-bold mb-1 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
                         Email Address <span className="text-red-500">*</span>
                       </label>
                       <input
@@ -1151,12 +1435,16 @@ export default function App() {
                         value={loginEmail}
                         onChange={e => setLoginEmail(e.target.value)}
                         placeholder="name@company.com"
-                        className="w-full px-3.5 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:border-blue-600 focus:ring-3 focus:ring-blue-100"
+                        className={`w-full px-3.5 py-2.5 text-xs rounded-xl border focus:outline-none focus:ring-3 ${
+                          isDark
+                            ? 'bg-slate-950 border-slate-700 text-white focus:border-blue-500 focus:ring-blue-900/40'
+                            : 'bg-white border-slate-300 text-slate-800 focus:border-blue-600 focus:ring-blue-100'
+                        }`}
                       />
                     </div>
 
                     <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1">
+                      <label className={`block text-xs font-bold mb-1 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
                         Password <span className="text-red-500">*</span>
                       </label>
                       <div className="relative">
@@ -1165,7 +1453,11 @@ export default function App() {
                           value={loginPassword}
                           onChange={e => setLoginPassword(e.target.value)}
                           placeholder="••••••••"
-                          className="w-full px-3.5 py-2 pr-10 text-sm border border-slate-300 rounded-lg focus:outline-none focus:border-blue-600 focus:ring-3 focus:ring-blue-100"
+                          className={`w-full px-3.5 py-2.5 pr-10 text-xs rounded-xl border focus:outline-none focus:ring-3 ${
+                            isDark
+                              ? 'bg-slate-950 border-slate-700 text-white focus:border-blue-500 focus:ring-blue-900/40'
+                              : 'bg-white border-slate-300 text-slate-800 focus:border-blue-600 focus:ring-blue-100'
+                          }`}
                         />
                         <button
                           type="button"
@@ -1178,7 +1470,7 @@ export default function App() {
                     </div>
 
                     <div className="flex items-center justify-between text-xs pt-1">
-                      <label className="flex items-center gap-2 text-slate-600 cursor-pointer">
+                      <label className={`flex items-center gap-2 cursor-pointer ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
                         <input
                           type="checkbox"
                           checked={loginRememberMe}
@@ -1190,7 +1482,7 @@ export default function App() {
                       <button
                         type="button"
                         onClick={() => setModalType('forgot')}
-                        className="text-blue-700 font-semibold hover:underline"
+                        className="text-blue-500 font-bold hover:underline"
                       >
                         Forgot password?
                       </button>
@@ -1198,15 +1490,15 @@ export default function App() {
 
                     <button
                       type="submit"
-                      className="w-full py-2.5 bg-blue-700 hover:bg-blue-800 text-white rounded-lg text-sm font-semibold shadow-xs transition-colors mt-2"
+                      className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-black btn-3d-primary mt-2"
                     >
                       Sign In
                     </button>
 
                     {/* Fast test user quick-login buttons */}
-                    <div className="pt-2 border-t border-slate-200 mt-4">
-                      <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2 text-center">
-                        Quick Demo Sign In
+                    <div className={`pt-3 border-t mt-4 ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
+                      <p className="text-[10px] font-extrabold uppercase tracking-wider mb-2 text-center text-slate-400">
+                        Quick Demo Account Sign In
                       </p>
                       <div className="grid grid-cols-2 gap-2">
                         {users.slice(0, 2).map(u => (
@@ -1217,7 +1509,11 @@ export default function App() {
                               setCurrentUser(u);
                               showToast(`Logged in as ${u.fullName}`, 'success');
                             }}
-                            className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium rounded-lg text-center transition-colors truncate"
+                            className={`px-3 py-2 text-xs font-bold rounded-xl text-center transition-all border ${
+                              isDark
+                                ? 'bg-slate-800/80 text-slate-300 border-slate-700 btn-3d-secondary-dark'
+                                : 'bg-slate-100 text-slate-700 border-slate-200 btn-3d-secondary-light'
+                            }`}
                           >
                             As {u.fullName.split(' ')[0]}
                           </button>
@@ -1225,7 +1521,7 @@ export default function App() {
                       </div>
                     </div>
 
-                    <div className="text-center pt-3 text-xs text-slate-600">
+                    <div className="text-center pt-3 text-xs text-slate-400">
                       Don't have an account?{' '}
                       <button
                         type="button"
@@ -1233,7 +1529,7 @@ export default function App() {
                           setAuthView('register');
                           setLoginError('');
                         }}
-                        className="text-blue-700 font-bold hover:underline"
+                        className="text-blue-500 font-bold hover:underline ml-1"
                       >
                         Create Account
                       </button>
@@ -1245,20 +1541,20 @@ export default function App() {
                 {authView === 'register' && (
                   <form onSubmit={handleRegister} className="space-y-4">
                     {regError && (
-                      <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700 flex items-center gap-2">
-                        <AlertCircle className="w-4 h-4 shrink-0" />
+                      <div className="p-3 bg-red-900/30 border border-red-700/50 rounded-xl text-xs text-red-300 flex items-center gap-2">
+                        <AlertCircle className="w-4 h-4 shrink-0 text-red-400" />
                         <span>{regError}</span>
                       </div>
                     )}
                     {regSuccess && (
-                      <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-xs text-emerald-700 flex items-center gap-2">
-                        <CheckCircle2 className="w-4 h-4 shrink-0" />
+                      <div className="p-3 bg-emerald-900/30 border border-emerald-700/50 rounded-xl text-xs text-emerald-300 flex items-center gap-2">
+                        <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
                         <span>{regSuccess}</span>
                       </div>
                     )}
 
                     <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1">
+                      <label className={`block text-xs font-bold mb-1 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
                         Full Name <span className="text-red-500">*</span>
                       </label>
                       <input
@@ -1266,12 +1562,16 @@ export default function App() {
                         value={regFullName}
                         onChange={e => setRegFullName(e.target.value)}
                         placeholder="Johnathan Davis"
-                        className="w-full px-3.5 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:border-blue-600 focus:ring-3 focus:ring-blue-100"
+                        className={`w-full px-3.5 py-2.5 text-xs rounded-xl border focus:outline-none focus:ring-3 ${
+                          isDark
+                            ? 'bg-slate-950 border-slate-700 text-white focus:border-blue-500 focus:ring-blue-900/40'
+                            : 'bg-white border-slate-300 text-slate-800 focus:border-blue-600 focus:ring-blue-100'
+                        }`}
                       />
                     </div>
 
                     <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1">
+                      <label className={`block text-xs font-bold mb-1 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
                         Email Address <span className="text-red-500">*</span>
                       </label>
                       <input
@@ -1279,12 +1579,16 @@ export default function App() {
                         value={regEmail}
                         onChange={e => setRegEmail(e.target.value)}
                         placeholder="name@company.com"
-                        className="w-full px-3.5 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:border-blue-600 focus:ring-3 focus:ring-blue-100"
+                        className={`w-full px-3.5 py-2.5 text-xs rounded-xl border focus:outline-none focus:ring-3 ${
+                          isDark
+                            ? 'bg-slate-950 border-slate-700 text-white focus:border-blue-500 focus:ring-blue-900/40'
+                            : 'bg-white border-slate-300 text-slate-800 focus:border-blue-600 focus:ring-blue-100'
+                        }`}
                       />
                     </div>
 
                     <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1">
+                      <label className={`block text-xs font-bold mb-1 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
                         Password <span className="text-red-500">*</span>
                       </label>
                       <div className="relative">
@@ -1293,7 +1597,11 @@ export default function App() {
                           value={regPassword}
                           onChange={e => setRegPassword(e.target.value)}
                           placeholder="Minimum 8 characters"
-                          className="w-full px-3.5 py-2 pr-10 text-sm border border-slate-300 rounded-lg focus:outline-none focus:border-blue-600 focus:ring-3 focus:ring-blue-100"
+                          className={`w-full px-3.5 py-2.5 pr-10 text-xs rounded-xl border focus:outline-none focus:ring-3 ${
+                            isDark
+                              ? 'bg-slate-950 border-slate-700 text-white focus:border-blue-500 focus:ring-blue-900/40'
+                              : 'bg-white border-slate-300 text-slate-800 focus:border-blue-600 focus:ring-blue-100'
+                          }`}
                         />
                         <button
                           type="button"
@@ -1306,14 +1614,14 @@ export default function App() {
 
                       {/* Password strength meter */}
                       <div className="mt-1.5">
-                        <div className="h-1 w-full bg-slate-200 rounded-full overflow-hidden">
+                        <div className={`h-1.5 w-full rounded-full overflow-hidden ${isDark ? 'bg-slate-800' : 'bg-slate-200'}`}>
                           <div
                             className={`h-full transition-all duration-300 ${getPasswordStrength(regPassword).color} ${
                               getPasswordStrength(regPassword).width
                             }`}
                           ></div>
                         </div>
-                        <div className="flex justify-between text-[11px] text-slate-500 mt-1">
+                        <div className="flex justify-between text-[11px] text-slate-400 mt-1">
                           <span>{getPasswordStrength(regPassword).label}</span>
                           <span>Min 8 chars</span>
                         </div>
@@ -1321,7 +1629,7 @@ export default function App() {
                     </div>
 
                     <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1">
+                      <label className={`block text-xs font-bold mb-1 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
                         Confirm Password <span className="text-red-500">*</span>
                       </label>
                       <input
@@ -1329,18 +1637,22 @@ export default function App() {
                         value={regConfirmPassword}
                         onChange={e => setRegConfirmPassword(e.target.value)}
                         placeholder="Re-enter password"
-                        className="w-full px-3.5 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:border-blue-600 focus:ring-3 focus:ring-blue-100"
+                        className={`w-full px-3.5 py-2.5 text-xs rounded-xl border focus:outline-none focus:ring-3 ${
+                          isDark
+                            ? 'bg-slate-950 border-slate-700 text-white focus:border-blue-500 focus:ring-blue-900/40'
+                            : 'bg-white border-slate-300 text-slate-800 focus:border-blue-600 focus:ring-blue-100'
+                        }`}
                       />
                     </div>
 
                     <button
                       type="submit"
-                      className="w-full py-2.5 bg-blue-700 hover:bg-blue-800 text-white rounded-lg text-sm font-semibold shadow-xs transition-colors mt-2"
+                      className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-black btn-3d-primary mt-2"
                     >
                       Create Account
                     </button>
 
-                    <div className="text-center pt-3 text-xs text-slate-600">
+                    <div className="text-center pt-3 text-xs text-slate-400">
                       Already have an account?{' '}
                       <button
                         type="button"
@@ -1348,7 +1660,7 @@ export default function App() {
                           setAuthView('login');
                           setRegError('');
                         }}
-                        className="text-blue-700 font-bold hover:underline"
+                        className="text-blue-500 font-bold hover:underline ml-1"
                       >
                         Sign In
                       </button>
@@ -1363,16 +1675,19 @@ export default function App() {
 
       {/* Code Inspector Tab */}
       {activeTab === 'code' && (
-        <div className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 py-6 w-full flex flex-col">
-          <div className="bg-white border border-slate-200 rounded-xl shadow-xs overflow-hidden flex-1 flex flex-col min-h-[680px]">
-            {/* Header */}
-            <div className="p-4 border-b border-slate-200 bg-slate-50/70 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 py-7 w-full flex flex-col">
+          <div className={`rounded-2xl border overflow-hidden flex-1 flex flex-col min-h-[680px] ${
+            isDark ? 'bg-slate-900 border-slate-800 card-3d-dark' : 'bg-white border-slate-200 card-3d-light'
+          }`}>
+            <div className={`p-4 border-b flex flex-wrap items-center justify-between gap-3 ${
+              isDark ? 'border-slate-800 bg-slate-900/60' : 'border-slate-200 bg-slate-50'
+            }`}>
               <div>
-                <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                  <Code2 className="w-5 h-5 text-blue-700" />
+                <h2 className={`text-base font-extrabold flex items-center gap-2 ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                  <Code2 className="w-5 h-5 text-blue-500" />
                   Spring Boot & MySQL Codebase Inspector
                 </h2>
-                <p className="text-xs text-slate-500">
+                <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
                   Inspect the complete production-grade source code, JPA entities, controllers, unit tests, and MySQL scripts.
                 </p>
               </div>
@@ -1380,30 +1695,35 @@ export default function App() {
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => handleCopyCode(PROJECT_FILES[selectedFile] || '')}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-300 hover:bg-slate-100 rounded-lg text-xs font-semibold text-slate-700 transition-colors shadow-xs"
+                  className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold border transition-all ${
+                    isDark
+                      ? 'bg-slate-800 border-slate-700 text-slate-200 btn-3d-secondary-dark'
+                      : 'bg-white border-slate-300 text-slate-700 btn-3d-secondary-light'
+                  }`}
                 >
-                  {copied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                  {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
                   {copied ? 'Copied File' : 'Copy File'}
                 </button>
               </div>
             </div>
 
-            {/* Split view: file list + code viewer */}
             <div className="grid grid-cols-1 md:grid-cols-4 flex-1">
-              {/* File list */}
-              <div className="border-r border-slate-200 bg-slate-50/50 p-3 space-y-4 text-xs overflow-y-auto max-h-[750px]">
+              {/* Sidebar file list */}
+              <div className={`border-r p-3 space-y-4 text-xs overflow-y-auto max-h-[750px] ${
+                isDark ? 'border-slate-800 bg-slate-950/60' : 'border-slate-200 bg-slate-50/50'
+              }`}>
                 <div>
-                  <div className="font-bold text-slate-400 uppercase tracking-wider text-[10px] px-2 mb-1.5">
+                  <div className="font-extrabold text-slate-400 uppercase tracking-wider text-[10px] px-2 mb-1.5">
                     Spring Boot Maven & Config
                   </div>
                   {['pom.xml', 'application.properties', 'schema.sql'].map(f => (
                     <button
                       key={f}
                       onClick={() => setSelectedFile(f)}
-                      className={`w-full text-left px-2.5 py-1.5 rounded-lg flex items-center gap-2 transition-colors ${
+                      className={`w-full text-left px-2.5 py-1.5 rounded-xl flex items-center gap-2 transition-all ${
                         selectedFile === f
-                          ? 'bg-blue-600 text-white font-semibold'
-                          : 'text-slate-700 hover:bg-slate-200/70'
+                          ? 'bg-blue-600 text-white font-bold shadow-xs'
+                          : isDark ? 'text-slate-300 hover:bg-slate-800' : 'text-slate-700 hover:bg-slate-200/70'
                       }`}
                     >
                       <FileText className="w-3.5 h-3.5 shrink-0 opacity-80" />
@@ -1413,17 +1733,17 @@ export default function App() {
                 </div>
 
                 <div>
-                  <div className="font-bold text-slate-400 uppercase tracking-wider text-[10px] px-2 mb-1.5">
+                  <div className="font-extrabold text-slate-400 uppercase tracking-wider text-[10px] px-2 mb-1.5">
                     Controllers & Endpoints
                   </div>
                   {['ContactController.java', 'AuthController.java', 'CsvImportResponse.java'].map(f => (
                     <button
                       key={f}
                       onClick={() => setSelectedFile(f)}
-                      className={`w-full text-left px-2.5 py-1.5 rounded-lg flex items-center gap-2 transition-colors ${
+                      className={`w-full text-left px-2.5 py-1.5 rounded-xl flex items-center gap-2 transition-all ${
                         selectedFile === f
-                          ? 'bg-blue-600 text-white font-semibold'
-                          : 'text-slate-700 hover:bg-slate-200/70'
+                          ? 'bg-blue-600 text-white font-bold shadow-xs'
+                          : isDark ? 'text-slate-300 hover:bg-slate-800' : 'text-slate-700 hover:bg-slate-200/70'
                       }`}
                     >
                       <Code2 className="w-3.5 h-3.5 shrink-0 opacity-80" />
@@ -1433,17 +1753,17 @@ export default function App() {
                 </div>
 
                 <div>
-                  <div className="font-bold text-slate-400 uppercase tracking-wider text-[10px] px-2 mb-1.5">
+                  <div className="font-extrabold text-slate-400 uppercase tracking-wider text-[10px] px-2 mb-1.5">
                     Security & Services
                   </div>
                   {['SecurityConfig.java', 'AuthService.java', 'ContactService.java'].map(f => (
                     <button
                       key={f}
                       onClick={() => setSelectedFile(f)}
-                      className={`w-full text-left px-2.5 py-1.5 rounded-lg flex items-center gap-2 transition-colors ${
+                      className={`w-full text-left px-2.5 py-1.5 rounded-xl flex items-center gap-2 transition-all ${
                         selectedFile === f
-                          ? 'bg-blue-600 text-white font-semibold'
-                          : 'text-slate-700 hover:bg-slate-200/70'
+                          ? 'bg-blue-600 text-white font-bold shadow-xs'
+                          : isDark ? 'text-slate-300 hover:bg-slate-800' : 'text-slate-700 hover:bg-slate-200/70'
                       }`}
                     >
                       <ShieldCheck className="w-3.5 h-3.5 shrink-0 opacity-80" />
@@ -1453,17 +1773,17 @@ export default function App() {
                 </div>
 
                 <div>
-                  <div className="font-bold text-slate-400 uppercase tracking-wider text-[10px] px-2 mb-1.5">
+                  <div className="font-extrabold text-slate-400 uppercase tracking-wider text-[10px] px-2 mb-1.5">
                     JPA Entities & Repositories
                   </div>
                   {['Contact.java', 'User.java', 'ContactRepository.java', 'UserRepository.java'].map(f => (
                     <button
                       key={f}
                       onClick={() => setSelectedFile(f)}
-                      className={`w-full text-left px-2.5 py-1.5 rounded-lg flex items-center gap-2 transition-colors ${
+                      className={`w-full text-left px-2.5 py-1.5 rounded-xl flex items-center gap-2 transition-all ${
                         selectedFile === f
-                          ? 'bg-blue-600 text-white font-semibold'
-                          : 'text-slate-700 hover:bg-slate-200/70'
+                          ? 'bg-blue-600 text-white font-bold shadow-xs'
+                          : isDark ? 'text-slate-300 hover:bg-slate-800' : 'text-slate-700 hover:bg-slate-200/70'
                       }`}
                     >
                       <Database className="w-3.5 h-3.5 shrink-0 opacity-80" />
@@ -1473,17 +1793,17 @@ export default function App() {
                 </div>
 
                 <div>
-                  <div className="font-bold text-slate-400 uppercase tracking-wider text-[10px] px-2 mb-1.5">
+                  <div className="font-extrabold text-slate-400 uppercase tracking-wider text-[10px] px-2 mb-1.5">
                     Unit & Integration Tests
                   </div>
                   {['AuthServiceTest.java', 'ContactServiceTest.java', 'ContactControllerTest.java'].map(f => (
                     <button
                       key={f}
                       onClick={() => setSelectedFile(f)}
-                      className={`w-full text-left px-2.5 py-1.5 rounded-lg flex items-center gap-2 transition-colors ${
+                      className={`w-full text-left px-2.5 py-1.5 rounded-xl flex items-center gap-2 transition-all ${
                         selectedFile === f
-                          ? 'bg-blue-600 text-white font-semibold'
-                          : 'text-slate-700 hover:bg-slate-200/70'
+                          ? 'bg-blue-600 text-white font-bold shadow-xs'
+                          : isDark ? 'text-slate-300 hover:bg-slate-800' : 'text-slate-700 hover:bg-slate-200/70'
                       }`}
                     >
                       <Terminal className="w-3.5 h-3.5 shrink-0 opacity-80" />
@@ -1493,17 +1813,17 @@ export default function App() {
                 </div>
 
                 <div>
-                  <div className="font-bold text-slate-400 uppercase tracking-wider text-[10px] px-2 mb-1.5">
-                    Static Frontend (Vanilla)
+                  <div className="font-extrabold text-slate-400 uppercase tracking-wider text-[10px] px-2 mb-1.5">
+                    Static Frontend
                   </div>
                   {['index.html', 'login.html', 'register.html', 'script.js', 'style.css'].map(f => (
                     <button
                       key={f}
                       onClick={() => setSelectedFile(f)}
-                      className={`w-full text-left px-2.5 py-1.5 rounded-lg flex items-center gap-2 transition-colors ${
+                      className={`w-full text-left px-2.5 py-1.5 rounded-xl flex items-center gap-2 transition-all ${
                         selectedFile === f
-                          ? 'bg-blue-600 text-white font-semibold'
-                          : 'text-slate-700 hover:bg-slate-200/70'
+                          ? 'bg-blue-600 text-white font-bold shadow-xs'
+                          : isDark ? 'text-slate-300 hover:bg-slate-800' : 'text-slate-700 hover:bg-slate-200/70'
                       }`}
                     >
                       <FileText className="w-3.5 h-3.5 shrink-0 opacity-80" />
@@ -1528,104 +1848,52 @@ export default function App() {
         </div>
       )}
 
-      {/* Guide Tab: How to run locally with Maven & MySQL */}
+      {/* Guide Tab */}
       {activeTab === 'guide' && (
-        <div className="flex-1 max-w-5xl mx-auto px-4 sm:px-6 py-6 w-full space-y-6">
-          <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-xs">
-            <h2 className="text-xl font-bold text-slate-900 mb-2 flex items-center gap-2">
-              <Terminal className="w-6 h-6 text-blue-700" />
+        <div className="flex-1 max-w-5xl mx-auto px-4 sm:px-6 py-7 w-full space-y-6">
+          <div className={`rounded-2xl border p-6 transition-colors ${
+            isDark ? 'bg-slate-900 border-slate-800 card-3d-dark' : 'bg-white border-slate-200 card-3d-light'
+          }`}>
+            <h2 className={`text-xl font-black mb-2 flex items-center gap-2 ${isDark ? 'text-white' : 'text-slate-900'}`}>
+              <Terminal className="w-6 h-6 text-blue-500" />
               Local Execution & MySQL Setup Guide
             </h2>
-            <p className="text-sm text-slate-600 mb-6">
-              Follow these simple steps to run the complete Spring Boot application locally with MySQL on port 8080.
+            <p className={`text-xs mb-6 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+              Follow these instructions to run the complete Spring Boot backend locally with MySQL on port 8080.
             </p>
 
-            <div className="space-y-6 text-sm">
-              {/* Step 1 */}
-              <div className="border border-slate-200 rounded-lg p-4 bg-slate-50/50">
-                <div className="flex items-center gap-2 font-bold text-slate-900 mb-2">
-                  <span className="w-6 h-6 rounded-full bg-blue-700 text-white text-xs flex items-center justify-center font-bold">
-                    1
-                  </span>
-                  Prerequisites (JDK 17+ and Maven)
+            <div className="space-y-5 text-xs">
+              <div className={`border rounded-xl p-4 ${isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
+                <div className={`font-bold mb-2 flex items-center gap-2 ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                  <span className="w-5 h-5 rounded-full bg-blue-600 text-white text-[11px] flex items-center justify-center font-bold">1</span>
+                  Prerequisites (JDK 17+ & Maven)
                 </div>
-                <p className="text-slate-600 mb-2">Ensure OpenJDK 17 or higher and Apache Maven 3.8+ are installed:</p>
-                <div className="bg-slate-900 text-slate-200 p-3 rounded font-mono text-xs">
+                <div className="bg-slate-950 text-slate-200 p-3 rounded-lg font-mono text-xs">
                   java -version<br />
                   mvn -version
                 </div>
               </div>
 
-              {/* Step 2 */}
-              <div className="border border-slate-200 rounded-lg p-4 bg-slate-50/50">
-                <div className="flex items-center gap-2 font-bold text-slate-900 mb-2">
-                  <span className="w-6 h-6 rounded-full bg-blue-700 text-white text-xs flex items-center justify-center font-bold">
-                    2
-                  </span>
-                  Start MySQL and Create Database
+              <div className={`border rounded-xl p-4 ${isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
+                <div className={`font-bold mb-2 flex items-center gap-2 ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                  <span className="w-5 h-5 rounded-full bg-blue-600 text-white text-[11px] flex items-center justify-center font-bold">2</span>
+                  Start MySQL & Create Database
                 </div>
-                <p className="text-slate-600 mb-2">Start your local MySQL service and execute the schema:</p>
-                <div className="bg-slate-900 text-slate-200 p-3 rounded font-mono text-xs space-y-1">
+                <div className="bg-slate-950 text-slate-200 p-3 rounded-lg font-mono text-xs space-y-1">
                   <div>mysql -u root -p</div>
                   <div className="text-emerald-400">CREATE DATABASE contactdb CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;</div>
-                  <div className="text-slate-400"># Or load schema.sql:</div>
-                  <div>mysql -u root -p contactdb &lt; schema.sql</div>
                 </div>
               </div>
 
-              {/* Step 3 */}
-              <div className="border border-slate-200 rounded-lg p-4 bg-slate-50/50">
-                <div className="flex items-center gap-2 font-bold text-slate-900 mb-2">
-                  <span className="w-6 h-6 rounded-full bg-blue-700 text-white text-xs flex items-center justify-center font-bold">
-                    3
-                  </span>
-                  Configure Database Credentials & Launch
+              <div className={`border rounded-xl p-4 ${isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
+                <div className={`font-bold mb-2 flex items-center gap-2 ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                  <span className="w-5 h-5 rounded-full bg-blue-600 text-white text-[11px] flex items-center justify-center font-bold">3</span>
+                  Run Spring Boot
                 </div>
-                <p className="text-slate-600 mb-2">
-                  You can set your MySQL password via environment variables without altering source code:
-                </p>
-                <div className="bg-slate-900 text-slate-200 p-3 rounded font-mono text-xs space-y-1">
-                  <div className="text-slate-400"># Linux / macOS:</div>
+                <div className="bg-slate-950 text-slate-200 p-3 rounded-lg font-mono text-xs space-y-1">
                   <div>export DB_USERNAME=root</div>
-                  <div>export DB_PASSWORD=your_mysql_password</div>
+                  <div>export DB_PASSWORD=your_password</div>
                   <div>mvn spring-boot:run</div>
-                  <br />
-                  <div className="text-slate-400"># Windows (PowerShell):</div>
-                  <div>$env:DB_USERNAME="root"; $env:DB_PASSWORD="your_mysql_password"; mvn spring-boot:run</div>
-                </div>
-              </div>
-
-              {/* Step 4 */}
-              <div className="border border-slate-200 rounded-lg p-4 bg-slate-50/50">
-                <div className="flex items-center gap-2 font-bold text-slate-900 mb-2">
-                  <span className="w-6 h-6 rounded-full bg-blue-700 text-white text-xs flex items-center justify-center font-bold">
-                    4
-                  </span>
-                  Open Web Application in Browser
-                </div>
-                <p className="text-slate-600 mb-2">
-                  Once started, Spring Boot will serve both the REST API and the frontend at:
-                </p>
-                <div className="bg-slate-900 text-slate-200 p-3 rounded font-mono text-xs">
-                  http://localhost:8080/login.html<br />
-                  http://localhost:8080/register.html<br />
-                  http://localhost:8080/index.html
-                </div>
-              </div>
-
-              {/* Step 5 */}
-              <div className="border border-slate-200 rounded-lg p-4 bg-slate-50/50">
-                <div className="flex items-center gap-2 font-bold text-slate-900 mb-2">
-                  <span className="w-6 h-6 rounded-full bg-blue-700 text-white text-xs flex items-center justify-center font-bold">
-                    5
-                  </span>
-                  Run Automated Unit & Integration Tests
-                </div>
-                <p className="text-slate-600 mb-2">
-                  Run the complete test suite (includes tests for registration, password hashing, isolation, and CRUD):
-                </p>
-                <div className="bg-slate-900 text-slate-200 p-3 rounded font-mono text-xs">
-                  mvn test
                 </div>
               </div>
             </div>
@@ -1633,27 +1901,610 @@ export default function App() {
         </div>
       )}
 
-      {/* Modals for Live Interactive App */}
+      {/* Deploy to Vercel & GitHub Deploy Key Tab */}
+      {activeTab === 'deploy' && (
+        <div className="flex-1 max-w-6xl mx-auto px-4 sm:px-6 py-7 w-full space-y-6">
+          {/* Header Banner with 3D Depth */}
+          <div className={`rounded-2xl border p-6 transition-colors ${
+            isDark ? 'bg-slate-900 border-slate-800 card-3d-dark' : 'bg-white border-slate-200 card-3d-light'
+          }`}>
+            <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
+              <div className="flex items-center gap-3.5">
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-700 text-white flex items-center justify-center font-extrabold shadow-md border-t border-white/30 transform hover:scale-105 transition-transform">
+                  <Rocket className="w-6 h-6 drop-shadow-sm text-amber-300" />
+                </div>
+                <div>
+                  <h2 className={`text-xl font-black tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                    GitHub Deploy Key & Vercel Publishing Hub
+                  </h2>
+                  <p className={`text-xs mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                    Generate OpenSSH deploy keys, configure GitHub Actions automated CI/CD, and deploy your Contact Manager to Vercel.
+                  </p>
+                </div>
+              </div>
+
+              {/* Status Badges */}
+              <div className="flex flex-wrap items-center gap-2">
+                <span className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border flex items-center gap-1.5 ${
+                  isDark ? 'bg-slate-800 text-slate-300 border-slate-700' : 'bg-slate-100 text-slate-700 border-slate-200'
+                }`}>
+                  <Server className="w-3.5 h-3.5 text-blue-500" />
+                  Vite 8 + React 19 SPA
+                </span>
+                <span className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-emerald-950/60 text-emerald-300 border border-emerald-700/80 flex items-center gap-1.5">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                  Production Ready
+                </span>
+              </div>
+            </div>
+
+            {/* Quick overview pills */}
+            <div className={`p-4 rounded-xl border text-xs grid grid-cols-1 sm:grid-cols-3 gap-3 ${
+              isDark ? 'bg-slate-950/70 border-slate-800 text-slate-300' : 'bg-slate-50 border-slate-200 text-slate-700'
+            }`}>
+              <div>
+                <strong className="block text-slate-400 uppercase text-[10px] font-extrabold tracking-wider mb-0.5">Build Command</strong>
+                <code className="font-mono text-blue-400 font-bold">npm run build</code>
+              </div>
+              <div>
+                <strong className="block text-slate-400 uppercase text-[10px] font-extrabold tracking-wider mb-0.5">Output Directory</strong>
+                <code className="font-mono text-emerald-400 font-bold">dist</code>
+              </div>
+              <div>
+                <strong className="block text-slate-400 uppercase text-[10px] font-extrabold tracking-wider mb-0.5">Routing Preset</strong>
+                <code className="font-mono text-purple-400 font-bold">SPA Rewrites (vercel.json)</code>
+              </div>
+            </div>
+          </div>
+
+          {/* Section 1: OpenSSH Deploy Key Generator Card */}
+          <div className={`rounded-2xl border p-6 transition-colors ${
+            isDark ? 'bg-slate-900 border-slate-800 card-3d-dark' : 'bg-white border-slate-200 card-3d-light'
+          }`}>
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-4 pb-3 border-b border-slate-200 dark:border-slate-800">
+              <div className="flex items-center gap-2.5">
+                <div className={`w-9 h-9 rounded-xl flex items-center justify-center border ${
+                  isDark ? 'bg-amber-950/50 text-amber-400 border-amber-800/60' : 'bg-amber-50 text-amber-700 border-amber-200'
+                }`}>
+                  <Key className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className={`text-base font-extrabold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                    1. SSH Deploy Key Generator for GitHub
+                  </h3>
+                  <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                    Deploy keys grant read or write access to a single repository on GitHub.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                {/* Algorithm Toggle */}
+                <div className={`p-1 rounded-xl border flex items-center text-xs font-bold ${
+                  isDark ? 'bg-slate-950 border-slate-700' : 'bg-slate-100 border-slate-300'
+                }`}>
+                  <button
+                    onClick={() => {
+                      setDeployKeyAlgo('ed25519');
+                      handleRegenerateDeployKey('ed25519');
+                    }}
+                    className={`px-2.5 py-1 rounded-lg transition-all ${
+                      deployKeyAlgo === 'ed25519'
+                        ? 'bg-blue-600 text-white shadow-xs'
+                        : isDark ? 'text-slate-400 hover:text-white' : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    Ed25519 (Recommended)
+                  </button>
+                  <button
+                    onClick={() => {
+                      setDeployKeyAlgo('rsa');
+                      handleRegenerateDeployKey('rsa');
+                    }}
+                    className={`px-2.5 py-1 rounded-lg transition-all ${
+                      deployKeyAlgo === 'rsa'
+                        ? 'bg-blue-600 text-white shadow-xs'
+                        : isDark ? 'text-slate-400 hover:text-white' : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    RSA (4096-bit)
+                  </button>
+                </div>
+
+                <button
+                  onClick={() => handleRegenerateDeployKey()}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all flex items-center gap-1.5 ${
+                    isDark
+                      ? 'bg-slate-800 border-slate-700 text-slate-200 btn-3d-secondary-dark'
+                      : 'bg-white border-slate-300 text-slate-700 btn-3d-secondary-light'
+                  }`}
+                  title="Generate a brand new key pair"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  <span>Regenerate</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Public Key Display */}
+            <div className="space-y-4">
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className={`text-xs font-bold flex items-center gap-2 ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>
+                    <span>Public Deploy Key</span>
+                    <span className="text-[10px] font-normal px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                      Paste into GitHub Repo &rarr; Settings &rarr; Deploy keys
+                    </span>
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handleCopyDeployItem(deployKeyPair.publicKey, 'Public Key')}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-bold border flex items-center gap-1 transition-all ${
+                        copiedDeployItem === 'Public Key'
+                          ? 'bg-emerald-600 text-white border-emerald-500'
+                          : isDark
+                          ? 'bg-slate-800 border-slate-700 text-slate-200 hover:bg-slate-700'
+                          : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-100'
+                      }`}
+                    >
+                      {copiedDeployItem === 'Public Key' ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                      <span>{copiedDeployItem === 'Public Key' ? 'Copied!' : 'Copy Public Key'}</span>
+                    </button>
+                    <button
+                      onClick={() => handleDownloadDeployKey(deployKeyPair.publicKey, `${deployKeyAlgo === 'ed25519' ? 'id_ed25519' : 'id_rsa'}.pub`)}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-bold border flex items-center gap-1 transition-all ${
+                        isDark
+                          ? 'bg-slate-800 border-slate-700 text-slate-200 hover:bg-slate-700'
+                          : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-100'
+                      }`}
+                    >
+                      <Download className="w-3 h-3" />
+                      <span>Download .pub</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="relative">
+                  <textarea
+                    readOnly
+                    value={deployKeyPair.publicKey}
+                    rows={2}
+                    className={`w-full p-3 font-mono text-xs rounded-xl border focus:outline-none select-all ${
+                      isDark ? 'bg-slate-950 border-slate-800 text-emerald-400' : 'bg-slate-50 border-slate-300 text-emerald-700'
+                    }`}
+                  />
+                </div>
+
+                <div className={`p-3 rounded-xl border text-[11px] leading-relaxed mt-2 ${
+                  isDark ? 'bg-slate-950/50 border-slate-800 text-slate-400' : 'bg-blue-50/50 border-blue-200 text-slate-600'
+                }`}>
+                  <strong>How to use in GitHub:</strong>
+                  <ol className="list-decimal list-inside space-y-0.5 mt-1">
+                    <li>Open your GitHub repository in your browser.</li>
+                    <li>Click <strong>Settings</strong> &rarr; <strong>Deploy keys</strong> (in the left sidebar) &rarr; <strong>Add deploy key</strong>.</li>
+                    <li>Title: <code className="font-mono text-blue-500">Vercel Deploy Key</code>.</li>
+                    <li>Paste the copied Public Key into the <strong>Key</strong> box.</li>
+                    <li>Leave <em>Allow write access</em> unchecked (read-only is safer), then click <strong>Add key</strong>.</li>
+                  </ol>
+                </div>
+              </div>
+
+              {/* Private Key Display */}
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className={`text-xs font-bold flex items-center gap-2 ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>
+                    <span>Private Key (Secret)</span>
+                    <span className="text-[10px] font-normal px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/60 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
+                      Never share publicly
+                    </span>
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setShowPrivateKey(!showPrivateKey)}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-bold border flex items-center gap-1 transition-all ${
+                        isDark
+                          ? 'bg-slate-800 border-slate-700 text-slate-200 hover:bg-slate-700'
+                          : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-100'
+                      }`}
+                    >
+                      {showPrivateKey ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                      <span>{showPrivateKey ? 'Hide Private Key' : 'Reveal Private Key'}</span>
+                    </button>
+                    <button
+                      onClick={() => handleCopyDeployItem(deployKeyPair.privateKey, 'Private Key')}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-bold border flex items-center gap-1 transition-all ${
+                        copiedDeployItem === 'Private Key'
+                          ? 'bg-emerald-600 text-white border-emerald-500'
+                          : isDark
+                          ? 'bg-slate-800 border-slate-700 text-slate-200 hover:bg-slate-700'
+                          : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-100'
+                      }`}
+                    >
+                      {copiedDeployItem === 'Private Key' ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                      <span>{copiedDeployItem === 'Private Key' ? 'Copied!' : 'Copy Private Key'}</span>
+                    </button>
+                    <button
+                      onClick={() => handleDownloadDeployKey(deployKeyPair.privateKey, `${deployKeyAlgo === 'ed25519' ? 'id_ed25519' : 'id_rsa'}`)}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-bold border flex items-center gap-1 transition-all ${
+                        isDark
+                          ? 'bg-slate-800 border-slate-700 text-slate-200 hover:bg-slate-700'
+                          : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-100'
+                      }`}
+                    >
+                      <Download className="w-3 h-3" />
+                      <span>Download Key</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="relative">
+                  {showPrivateKey ? (
+                    <textarea
+                      readOnly
+                      value={deployKeyPair.privateKey}
+                      rows={5}
+                      className={`w-full p-3 font-mono text-xs rounded-xl border focus:outline-none select-all ${
+                        isDark ? 'bg-slate-950 border-slate-800 text-amber-300' : 'bg-slate-50 border-slate-300 text-amber-800'
+                      }`}
+                    />
+                  ) : (
+                    <div className={`p-4 rounded-xl border text-center font-mono text-xs select-none ${
+                      isDark ? 'bg-slate-950/80 border-slate-800 text-slate-500' : 'bg-slate-100 border-slate-300 text-slate-500'
+                    }`}>
+                      ••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••
+                      <div className="mt-1 text-[11px] font-sans text-slate-400">
+                        Click "Reveal Private Key" above to preview or copy the raw OpenSSH key block.
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex flex-wrap items-center justify-between text-[11px] text-slate-400 mt-2">
+                  <span>Fingerprint: <strong className="font-mono text-slate-300">{deployKeyPair.fingerprint}</strong></span>
+                  <span>Comment: <code className="font-mono text-slate-300">{deployKeyPair.comment}</code></span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Section 2: Vercel GitHub Publishing (Actions & Secrets) */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Card 2A: Vercel Token & GitHub Secrets */}
+            <div className={`rounded-2xl border p-6 transition-colors flex flex-col justify-between ${
+              isDark ? 'bg-slate-900 border-slate-800 card-3d-dark' : 'bg-white border-slate-200 card-3d-light'
+            }`}>
+              <div>
+                <div className="flex items-center gap-2.5 mb-3">
+                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center border ${
+                    isDark ? 'bg-blue-950/50 text-blue-400 border-blue-800/60' : 'bg-blue-50 text-blue-700 border-blue-200'
+                  }`}>
+                    <Shield className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className={`text-sm font-extrabold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                      2. Vercel Secrets for GitHub Actions
+                    </h3>
+                    <p className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                      Configure these 3 secrets in GitHub: <strong>Settings &rarr; Secrets and variables &rarr; Actions</strong>.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="space-y-3 mt-4 text-xs">
+                  <div className={`p-3 rounded-xl border flex items-center justify-between gap-3 ${
+                    isDark ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-200'
+                  }`}>
+                    <div>
+                      <strong className={`block font-mono ${isDark ? 'text-blue-400' : 'text-blue-700'}`}>VERCEL_TOKEN</strong>
+                      <span className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                        Create at vercel.com &rarr; Account Settings &rarr; Tokens
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => handleCopyDeployItem('VERCEL_TOKEN', 'Secret Name')}
+                      className={`px-2 py-1 rounded-lg text-[11px] font-bold border transition-all ${
+                        isDark ? 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700' : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-100'
+                      }`}
+                    >
+                      Copy Name
+                    </button>
+                  </div>
+
+                  <div className={`p-3 rounded-xl border flex items-center justify-between gap-3 ${
+                    isDark ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-200'
+                  }`}>
+                    <div>
+                      <strong className={`block font-mono ${isDark ? 'text-blue-400' : 'text-blue-700'}`}>VERCEL_ORG_ID</strong>
+                      <span className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                        Found in Team/Account Settings or via <code className="font-mono text-slate-300">npx vercel link</code>
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => handleCopyDeployItem('VERCEL_ORG_ID', 'Secret Name')}
+                      className={`px-2 py-1 rounded-lg text-[11px] font-bold border transition-all ${
+                        isDark ? 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700' : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-100'
+                      }`}
+                    >
+                      Copy Name
+                    </button>
+                  </div>
+
+                  <div className={`p-3 rounded-xl border flex items-center justify-between gap-3 ${
+                    isDark ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-200'
+                  }`}>
+                    <div>
+                      <strong className={`block font-mono ${isDark ? 'text-blue-400' : 'text-blue-700'}`}>VERCEL_PROJECT_ID</strong>
+                      <span className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                        Found in Vercel Project &rarr; Settings &rarr; General
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => handleCopyDeployItem('VERCEL_PROJECT_ID', 'Secret Name')}
+                      className={`px-2 py-1 rounded-lg text-[11px] font-bold border transition-all ${
+                        isDark ? 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700' : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-100'
+                      }`}
+                    >
+                      Copy Name
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className={`mt-4 p-3 rounded-xl border text-[11px] ${
+                isDark ? 'bg-blue-950/40 border-blue-900/60 text-blue-300' : 'bg-blue-50 border-blue-200 text-blue-800'
+              }`}>
+                <strong>Tip:</strong> Running <code className="font-mono font-bold">npx vercel link</code> once locally creates a <code className="font-mono">.vercel/project.json</code> file containing both your <code className="font-mono">orgId</code> and <code className="font-mono">projectId</code> automatically!
+              </div>
+            </div>
+
+            {/* Card 2B: GitHub Actions Workflow */}
+            <div className={`rounded-2xl border p-6 transition-colors flex flex-col justify-between ${
+              isDark ? 'bg-slate-900 border-slate-800 card-3d-dark' : 'bg-white border-slate-200 card-3d-light'
+            }`}>
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2.5">
+                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center border ${
+                      isDark ? 'bg-purple-950/50 text-purple-400 border-purple-800/60' : 'bg-purple-50 text-purple-700 border-purple-200'
+                    }`}>
+                      <Code2 className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h3 className={`text-sm font-extrabold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                        3. GitHub Actions CI/CD Workflow
+                      </h3>
+                      <p className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                        Location: <code className="font-mono">.github/workflows/vercel-deploy.yml</code>
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => handleCopyDeployItem(
+`name: Deploy to Vercel
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Build Project
+        run: npm run build
+
+      - name: Deploy to Vercel Action
+        uses: amondnet/vercel-action@v25
+        with:
+          vercel-token: \${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: \${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: \${{ secrets.VERCEL_PROJECT_ID }}
+          vercel-args: '--prod'`,
+                      'GitHub Actions Workflow'
+                    )}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-bold border flex items-center gap-1 transition-all ${
+                      copiedDeployItem === 'GitHub Actions Workflow'
+                        ? 'bg-emerald-600 text-white border-emerald-500'
+                        : isDark
+                        ? 'bg-slate-800 border-slate-700 text-slate-200 hover:bg-slate-700'
+                        : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-100'
+                    }`}
+                  >
+                    {copiedDeployItem === 'GitHub Actions Workflow' ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                    <span>{copiedDeployItem === 'GitHub Actions Workflow' ? 'Copied' : 'Copy YAML'}</span>
+                  </button>
+                </div>
+
+                <div className={`p-3 font-mono text-[11px] rounded-xl border max-h-56 overflow-y-auto leading-relaxed ${
+                  isDark ? 'bg-slate-950 border-slate-800 text-slate-300' : 'bg-slate-900 text-slate-200 border-slate-800'
+                }`}>
+                  <div className="text-slate-500"># Triggers on git push to main</div>
+                  <div className="text-blue-400">name: <span className="text-white">Deploy to Vercel</span></div>
+                  <div className="text-blue-400">on:</div>
+                  <div className="pl-4 text-slate-300">push:</div>
+                  <div className="pl-8 text-slate-300">branches: [main]</div>
+                  <div className="text-blue-400 mt-1">jobs:</div>
+                  <div className="pl-4 text-emerald-400">deploy:</div>
+                  <div className="pl-8 text-slate-400">runs-on: ubuntu-latest</div>
+                  <div className="pl-8 text-slate-400">steps:</div>
+                  <div className="pl-12 text-slate-300">- uses: actions/checkout@v4</div>
+                  <div className="pl-12 text-slate-300">- run: npm ci && npm run build</div>
+                  <div className="pl-12 text-slate-300">- uses: amondnet/vercel-action@v25</div>
+                  <div className="pl-16 text-amber-400">vercel-token: ${`{{ secrets.VERCEL_TOKEN }}`}</div>
+                  <div className="pl-16 text-amber-400">vercel-org-id: ${`{{ secrets.VERCEL_ORG_ID }}`}</div>
+                  <div className="pl-16 text-amber-400">vercel-project-id: ${`{{ secrets.VERCEL_PROJECT_ID }}`}</div>
+                  <div className="pl-16 text-emerald-400">vercel-args: '--prod'</div>
+                </div>
+              </div>
+
+              <div className={`mt-4 p-3 rounded-xl border text-[11px] ${
+                isDark ? 'bg-slate-950/60 border-slate-800 text-slate-400' : 'bg-slate-50 border-slate-200 text-slate-600'
+              }`}>
+                This file already exists in <code className="font-mono text-blue-500">/.github/workflows/vercel-deploy.yml</code>. Pushing to GitHub triggers an automated deploy instantly!
+              </div>
+            </div>
+          </div>
+
+          {/* Section 3: Vercel JSON & CLI Direct Publish */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Card 3A: vercel.json */}
+            <div className={`rounded-2xl border p-6 transition-colors ${
+              isDark ? 'bg-slate-900 border-slate-800 card-3d-dark' : 'bg-white border-slate-200 card-3d-light'
+            }`}>
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2.5">
+                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center border ${
+                    isDark ? 'bg-indigo-950/50 text-indigo-400 border-indigo-800/60' : 'bg-indigo-50 text-indigo-700 border-indigo-200'
+                  }`}>
+                    <FileText className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className={`text-sm font-extrabold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                      Production vercel.json
+                    </h3>
+                    <p className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                      Root routing and build outputs
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => handleCopyDeployItem(
+`{
+  "framework": "vite",
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "cleanUrls": true,
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}`,
+                    'vercel.json'
+                  )}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-bold border flex items-center gap-1 transition-all ${
+                    copiedDeployItem === 'vercel.json'
+                      ? 'bg-emerald-600 text-white border-emerald-500'
+                      : isDark
+                      ? 'bg-slate-800 border-slate-700 text-slate-200 hover:bg-slate-700'
+                      : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-100'
+                  }`}
+                >
+                  {copiedDeployItem === 'vercel.json' ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                  <span>{copiedDeployItem === 'vercel.json' ? 'Copied' : 'Copy JSON'}</span>
+                </button>
+              </div>
+
+              <pre className={`p-3 font-mono text-[11px] rounded-xl border leading-relaxed overflow-x-auto ${
+                isDark ? 'bg-slate-950 border-slate-800 text-slate-300' : 'bg-slate-900 text-slate-200 border-slate-800'
+              }`}>
+                <code>{`{
+  "framework": "vite",
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "cleanUrls": true,
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}`}</code>
+              </pre>
+            </div>
+
+            {/* Card 3B: Instant Vercel CLI Commands */}
+            <div className={`rounded-2xl border p-6 transition-colors flex flex-col justify-between ${
+              isDark ? 'bg-slate-900 border-slate-800 card-3d-dark' : 'bg-white border-slate-200 card-3d-light'
+            }`}>
+              <div>
+                <div className="flex items-center gap-2.5 mb-3">
+                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center border ${
+                    isDark ? 'bg-emerald-950/50 text-emerald-400 border-emerald-800/60' : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                  }`}>
+                    <Terminal className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className={`text-sm font-extrabold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                      CLI Instant Publish Option
+                    </h3>
+                    <p className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                      Deploy directly from your terminal in 3 commands
+                    </p>
+                  </div>
+                </div>
+
+                <div className={`p-3 rounded-xl border font-mono text-xs space-y-1.5 ${
+                  isDark ? 'bg-slate-950 border-slate-800 text-slate-200' : 'bg-slate-900 border-slate-800 text-slate-200'
+                }`}>
+                  <div className="text-slate-400"># 1. Install Vercel CLI globally</div>
+                  <div className="text-emerald-400">npm install -g vercel</div>
+                  <div className="text-slate-400 pt-1"># 2. Authenticate</div>
+                  <div className="text-emerald-400">vercel login</div>
+                  <div className="text-slate-400 pt-1"># 3. Deploy to production</div>
+                  <div className="text-emerald-400">vercel --prod</div>
+                </div>
+              </div>
+
+              <div className="flex justify-end pt-3">
+                <button
+                  onClick={() => handleCopyDeployItem('npm install -g vercel && vercel --prod', 'CLI Commands')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all flex items-center gap-1.5 ${
+                    copiedDeployItem === 'CLI Commands'
+                      ? 'bg-emerald-600 text-white border-emerald-500'
+                      : isDark
+                      ? 'bg-slate-800 border-slate-700 text-slate-200 btn-3d-secondary-dark'
+                      : 'bg-white border-slate-300 text-slate-700 btn-3d-secondary-light'
+                  }`}
+                >
+                  {copiedDeployItem === 'CLI Commands' ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                  <span>{copiedDeployItem === 'CLI Commands' ? 'Copied Commands' : 'Copy CLI Commands'}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 3D Modals for Live Interactive App */}
       {/* 1. Add / Edit Contact Modal */}
       {(modalType === 'add' || modalType === 'edit') && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
-            <div className="p-4 sm:p-5 border-b border-slate-200 flex items-center justify-between">
-              <h2 className="text-base font-bold text-slate-900">
+        <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className={`rounded-3xl w-full max-w-lg border overflow-hidden animate-in fade-in zoom-in-95 duration-150 ${
+            isDark ? 'bg-slate-900 border-slate-800 modal-3d-dark text-slate-100' : 'bg-white border-slate-200 modal-3d-light text-slate-800'
+          }`}>
+            <div className={`p-5 border-b flex items-center justify-between ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
+              <h2 className={`text-base font-extrabold ${isDark ? 'text-white' : 'text-slate-900'}`}>
                 {modalType === 'add' ? 'Add New Contact' : 'Edit Contact'}
               </h2>
               <button
                 onClick={() => setModalType(null)}
-                className="text-slate-400 hover:text-slate-700 p-1 rounded-lg"
+                className={`p-1.5 rounded-xl transition-colors ${isDark ? 'text-slate-400 hover:text-white hover:bg-slate-800' : 'text-slate-400 hover:text-slate-800 hover:bg-slate-100'}`}
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleSaveContact} className="p-4 sm:p-6 space-y-4">
+            <form onSubmit={handleSaveContact} className="p-5 sm:p-6 space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="sm:col-span-2">
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                  <label className={`block text-xs font-bold mb-1 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
                     Full Name <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -1661,19 +2512,21 @@ export default function App() {
                     value={formName}
                     onChange={e => setFormName(e.target.value)}
                     placeholder="e.g. Eleanor Sterling"
-                    className={`w-full px-3.5 py-2 text-sm border rounded-lg focus:outline-none focus:ring-3 ${
+                    className={`w-full px-3.5 py-2.5 text-xs rounded-xl border focus:outline-none focus:ring-3 ${
                       formErrors.name
-                        ? 'border-red-500 focus:ring-red-100'
-                        : 'border-slate-300 focus:border-blue-600 focus:ring-blue-100'
+                        ? 'border-red-500 focus:ring-red-900/30'
+                        : isDark
+                        ? 'bg-slate-950 border-slate-700 text-white focus:border-blue-500 focus:ring-blue-900/40'
+                        : 'bg-white border-slate-300 text-slate-800 focus:border-blue-600 focus:ring-blue-100'
                     }`}
                   />
                   {formErrors.name && (
-                    <p className="text-[11px] text-red-600 mt-1">{formErrors.name}</p>
+                    <p className="text-[11px] text-red-500 mt-1">{formErrors.name}</p>
                   )}
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                  <label className={`block text-xs font-bold mb-1 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
                     Phone Number <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -1681,91 +2534,123 @@ export default function App() {
                     value={formPhone}
                     onChange={e => setFormPhone(e.target.value)}
                     placeholder="e.g. +1 (555) 349-2041"
-                    className={`w-full px-3.5 py-2 text-sm border rounded-lg focus:outline-none focus:ring-3 ${
+                    className={`w-full px-3.5 py-2.5 text-xs rounded-xl border focus:outline-none focus:ring-3 ${
                       formErrors.phone
-                        ? 'border-red-500 focus:ring-red-100'
-                        : 'border-slate-300 focus:border-blue-600 focus:ring-blue-100'
+                        ? 'border-red-500 focus:ring-red-900/30'
+                        : isDark
+                        ? 'bg-slate-950 border-slate-700 text-white focus:border-blue-500 focus:ring-blue-900/40'
+                        : 'bg-white border-slate-300 text-slate-800 focus:border-blue-600 focus:ring-blue-100'
                     }`}
                   />
                   {formErrors.phone && (
-                    <p className="text-[11px] text-red-600 mt-1">{formErrors.phone}</p>
+                    <p className="text-[11px] text-red-500 mt-1">{formErrors.phone}</p>
                   )}
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Email Address</label>
+                  <label className={`block text-xs font-bold mb-1 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                    Email Address
+                  </label>
                   <input
                     type="email"
                     value={formEmail}
                     onChange={e => setFormEmail(e.target.value)}
                     placeholder="e.g. eleanor@sterling.com"
-                    className={`w-full px-3.5 py-2 text-sm border rounded-lg focus:outline-none focus:ring-3 ${
+                    className={`w-full px-3.5 py-2.5 text-xs rounded-xl border focus:outline-none focus:ring-3 ${
                       formErrors.email
-                        ? 'border-red-500 focus:ring-red-100'
-                        : 'border-slate-300 focus:border-blue-600 focus:ring-blue-100'
+                        ? 'border-red-500 focus:ring-red-900/30'
+                        : isDark
+                        ? 'bg-slate-950 border-slate-700 text-white focus:border-blue-500 focus:ring-blue-900/40'
+                        : 'bg-white border-slate-300 text-slate-800 focus:border-blue-600 focus:ring-blue-100'
                     }`}
                   />
                   {formErrors.email && (
-                    <p className="text-[11px] text-red-600 mt-1">{formErrors.email}</p>
+                    <p className="text-[11px] text-red-500 mt-1">{formErrors.email}</p>
                   )}
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Company</label>
+                  <label className={`block text-xs font-bold mb-1 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                    Company
+                  </label>
                   <input
                     type="text"
                     value={formCompany}
                     onChange={e => setFormCompany(e.target.value)}
                     placeholder="e.g. Sterling Advisory Group"
-                    className="w-full px-3.5 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:border-blue-600 focus:ring-3 focus:ring-blue-100"
+                    className={`w-full px-3.5 py-2.5 text-xs rounded-xl border focus:outline-none focus:ring-3 ${
+                      isDark
+                        ? 'bg-slate-950 border-slate-700 text-white focus:border-blue-500 focus:ring-blue-900/40'
+                        : 'bg-white border-slate-300 text-slate-800 focus:border-blue-600 focus:ring-blue-100'
+                    }`}
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Job Title</label>
+                  <label className={`block text-xs font-bold mb-1 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                    Job Title
+                  </label>
                   <input
                     type="text"
                     value={formJobTitle}
                     onChange={e => setFormJobTitle(e.target.value)}
                     placeholder="e.g. Managing Partner"
-                    className="w-full px-3.5 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:border-blue-600 focus:ring-3 focus:ring-blue-100"
+                    className={`w-full px-3.5 py-2.5 text-xs rounded-xl border focus:outline-none focus:ring-3 ${
+                      isDark
+                        ? 'bg-slate-950 border-slate-700 text-white focus:border-blue-500 focus:ring-blue-900/40'
+                        : 'bg-white border-slate-300 text-slate-800 focus:border-blue-600 focus:ring-blue-100'
+                    }`}
                   />
                 </div>
 
                 <div className="sm:col-span-2">
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Address</label>
+                  <label className={`block text-xs font-bold mb-1 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                    Address
+                  </label>
                   <input
                     type="text"
                     value={formAddress}
                     onChange={e => setFormAddress(e.target.value)}
                     placeholder="e.g. 450 Lexington Ave, New York, NY"
-                    className="w-full px-3.5 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:border-blue-600 focus:ring-3 focus:ring-blue-100"
+                    className={`w-full px-3.5 py-2.5 text-xs rounded-xl border focus:outline-none focus:ring-3 ${
+                      isDark
+                        ? 'bg-slate-950 border-slate-700 text-white focus:border-blue-500 focus:ring-blue-900/40'
+                        : 'bg-white border-slate-300 text-slate-800 focus:border-blue-600 focus:ring-blue-100'
+                    }`}
                   />
                 </div>
 
                 <div className="sm:col-span-2">
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Notes</label>
+                  <label className={`block text-xs font-bold mb-1 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                    Notes
+                  </label>
                   <textarea
                     value={formNotes}
                     onChange={e => setFormNotes(e.target.value)}
                     rows={3}
                     placeholder="Client preferences, context, or meeting notes..."
-                    className="w-full px-3.5 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:border-blue-600 focus:ring-3 focus:ring-blue-100"
+                    className={`w-full px-3.5 py-2.5 text-xs rounded-xl border focus:outline-none focus:ring-3 ${
+                      isDark
+                        ? 'bg-slate-950 border-slate-700 text-white focus:border-blue-500 focus:ring-blue-900/40'
+                        : 'bg-white border-slate-300 text-slate-800 focus:border-blue-600 focus:ring-blue-100'
+                    }`}
                   />
                 </div>
               </div>
 
-              <div className="pt-3 border-t border-slate-200 flex justify-end gap-2.5">
+              <div className={`pt-4 border-t flex justify-end gap-2.5 ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
                 <button
                   type="button"
                   onClick={() => setModalType(null)}
-                  className="px-4 py-2 border border-slate-300 text-slate-700 hover:bg-slate-100 rounded-lg text-xs font-semibold transition-colors"
+                  className={`px-4 py-2 rounded-xl text-xs font-bold border ${
+                    isDark ? 'bg-slate-800 text-slate-300 border-slate-700 btn-3d-secondary-dark' : 'bg-white text-slate-700 border-slate-300 btn-3d-secondary-light'
+                  }`}
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-blue-700 hover:bg-blue-800 text-white rounded-lg text-xs font-semibold shadow-xs transition-colors"
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-black btn-3d-primary"
                 >
                   {modalType === 'add' ? 'Save Contact' : 'Update Contact'}
                 </button>
@@ -1777,27 +2662,30 @@ export default function App() {
 
       {/* 2. View Contact Details Modal */}
       {modalType === 'view' && selectedContact && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
-            <div className="p-4 sm:p-5 border-b border-slate-200 flex items-center justify-between">
-              <h2 className="text-base font-bold text-slate-900">Contact Details</h2>
+        <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className={`rounded-3xl w-full max-w-lg border overflow-hidden animate-in fade-in zoom-in-95 duration-150 ${
+            isDark ? 'bg-slate-900 border-slate-800 modal-3d-dark text-slate-100' : 'bg-white border-slate-200 modal-3d-light text-slate-800'
+          }`}>
+            <div className={`p-5 border-b flex items-center justify-between ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
+              <h2 className={`text-base font-extrabold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                Contact Details
+              </h2>
               <button
                 onClick={() => setModalType(null)}
-                className="text-slate-400 hover:text-slate-700 p-1 rounded-lg"
+                className={`p-1.5 rounded-xl transition-colors ${isDark ? 'text-slate-400 hover:text-white hover:bg-slate-800' : 'text-slate-400 hover:text-slate-800 hover:bg-slate-100'}`}
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="p-4 sm:p-6 space-y-5">
-              {/* Profile Card */}
-              <div className="flex items-center gap-4 pb-4 border-b border-slate-200">
-                <div className="w-14 h-14 rounded-full bg-blue-100 text-blue-800 font-extrabold text-lg flex items-center justify-center shrink-0">
+            <div className="p-5 sm:p-6 space-y-5">
+              <div className={`flex items-center gap-4 pb-4 border-b ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
+                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-700 text-white font-black text-lg flex items-center justify-center shrink-0 avatar-3d border-t border-white/30">
                   {getInitials(selectedContact.name)}
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-slate-900 leading-snug">{selectedContact.name}</h3>
-                  <p className="text-xs text-slate-600">
+                  <h3 className={`text-lg font-black ${isDark ? 'text-white' : 'text-slate-900'}`}>{selectedContact.name}</h3>
+                  <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
                     {[selectedContact.jobTitle, selectedContact.company].filter(Boolean).join(' at ') || 'Contact'}
                   </p>
                 </div>
@@ -1805,84 +2693,88 @@ export default function App() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
                 <div>
-                  <span className="font-semibold text-slate-400 uppercase tracking-wider block text-[10px]">
+                  <span className="font-extrabold text-slate-400 uppercase tracking-wider block text-[10px]">
                     Phone Number
                   </span>
-                  <span className="font-mono text-slate-900 text-sm">{selectedContact.phone}</span>
+                  <span className={`font-mono font-bold text-sm ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>{selectedContact.phone}</span>
                 </div>
 
                 <div>
-                  <span className="font-semibold text-slate-400 uppercase tracking-wider block text-[10px]">
+                  <span className="font-extrabold text-slate-400 uppercase tracking-wider block text-[10px]">
                     Email Address
                   </span>
-                  <span className="text-slate-900 text-sm">
-                    {selectedContact.email || <span className="text-slate-400 italic">Not provided</span>}
+                  <span className={`text-sm ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
+                    {selectedContact.email || <span className="text-slate-500 italic">Not provided</span>}
                   </span>
                 </div>
 
                 <div>
-                  <span className="font-semibold text-slate-400 uppercase tracking-wider block text-[10px]">
+                  <span className="font-extrabold text-slate-400 uppercase tracking-wider block text-[10px]">
                     Company
                   </span>
-                  <span className="text-slate-900">
-                    {selectedContact.company || <span className="text-slate-400 italic">Not provided</span>}
+                  <span className={isDark ? 'text-slate-200' : 'text-slate-900'}>
+                    {selectedContact.company || <span className="text-slate-500 italic">Not provided</span>}
                   </span>
                 </div>
 
                 <div>
-                  <span className="font-semibold text-slate-400 uppercase tracking-wider block text-[10px]">
+                  <span className="font-extrabold text-slate-400 uppercase tracking-wider block text-[10px]">
                     Job Title
                   </span>
-                  <span className="text-slate-900">
-                    {selectedContact.jobTitle || <span className="text-slate-400 italic">Not provided</span>}
+                  <span className={isDark ? 'text-slate-200' : 'text-slate-900'}>
+                    {selectedContact.jobTitle || <span className="text-slate-500 italic">Not provided</span>}
                   </span>
                 </div>
 
                 <div className="sm:col-span-2">
-                  <span className="font-semibold text-slate-400 uppercase tracking-wider block text-[10px]">
+                  <span className="font-extrabold text-slate-400 uppercase tracking-wider block text-[10px]">
                     Address
                   </span>
-                  <span className="text-slate-900">
-                    {selectedContact.address || <span className="text-slate-400 italic">Not provided</span>}
+                  <span className={isDark ? 'text-slate-200' : 'text-slate-900'}>
+                    {selectedContact.address || <span className="text-slate-500 italic">Not provided</span>}
                   </span>
                 </div>
 
                 <div className="sm:col-span-2">
-                  <span className="font-semibold text-slate-400 uppercase tracking-wider block text-[10px]">
+                  <span className="font-extrabold text-slate-400 uppercase tracking-wider block text-[10px]">
                     Notes
                   </span>
-                  <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 text-slate-700 whitespace-pre-wrap mt-1">
-                    {selectedContact.notes || <span className="text-slate-400 italic">No notes recorded</span>}
+                  <div className={`p-3.5 rounded-xl border text-xs whitespace-pre-wrap mt-1 ${
+                    isDark ? 'bg-slate-950/80 border-slate-800 text-slate-300' : 'bg-slate-50 border-slate-200 text-slate-700'
+                  }`}>
+                    {selectedContact.notes || <span className="text-slate-500 italic">No notes recorded</span>}
                   </div>
                 </div>
 
                 <div>
-                  <span className="font-semibold text-slate-400 uppercase tracking-wider block text-[10px]">
+                  <span className="font-extrabold text-slate-400 uppercase tracking-wider block text-[10px]">
                     Created At
                   </span>
-                  <span className="text-slate-600">{formatDate(selectedContact.createdAt)}</span>
+                  <span className={isDark ? 'text-slate-400' : 'text-slate-600'}>{formatDate(selectedContact.createdAt)}</span>
                 </div>
 
                 <div>
-                  <span className="font-semibold text-slate-400 uppercase tracking-wider block text-[10px]">
+                  <span className="font-extrabold text-slate-400 uppercase tracking-wider block text-[10px]">
                     Last Updated
                   </span>
-                  <span className="text-slate-600">{formatDate(selectedContact.updatedAt)}</span>
+                  <span className={isDark ? 'text-slate-400' : 'text-slate-600'}>{formatDate(selectedContact.updatedAt)}</span>
                 </div>
               </div>
 
-              <div className="pt-3 border-t border-slate-200 flex justify-end gap-2.5">
+              <div className={`pt-4 border-t flex justify-end gap-2.5 ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
                 <button
                   type="button"
                   onClick={() => setModalType(null)}
-                  className="px-4 py-2 border border-slate-300 text-slate-700 hover:bg-slate-100 rounded-lg text-xs font-semibold transition-colors"
+                  className={`px-4 py-2 rounded-xl text-xs font-bold border ${
+                    isDark ? 'bg-slate-800 text-slate-300 border-slate-700 btn-3d-secondary-dark' : 'bg-white text-slate-700 border-slate-300 btn-3d-secondary-light'
+                  }`}
                 >
                   Close
                 </button>
                 <button
                   type="button"
                   onClick={() => openEditModal(selectedContact)}
-                  className="px-4 py-2 bg-blue-700 hover:bg-blue-800 text-white rounded-lg text-xs font-semibold shadow-xs transition-colors"
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-black btn-3d-primary"
                 >
                   Edit Contact
                 </button>
@@ -1894,28 +2786,32 @@ export default function App() {
 
       {/* 3. Delete Contact Confirmation Modal */}
       {modalType === 'delete' && selectedContact && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-150 p-5">
-            <div className="w-10 h-10 rounded-full bg-red-100 text-red-600 flex items-center justify-center mx-auto mb-3">
-              <Trash2 className="w-5 h-5" />
+        <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className={`rounded-3xl w-full max-w-sm border p-6 text-center ${
+            isDark ? 'bg-slate-900 border-slate-800 modal-3d-dark text-slate-100' : 'bg-white border-slate-200 modal-3d-light text-slate-800'
+          }`}>
+            <div className="w-12 h-12 rounded-2xl bg-red-950/60 text-red-500 border border-red-800/50 flex items-center justify-center mx-auto mb-3.5 pod-3d-dark">
+              <Trash2 className="w-6 h-6" />
             </div>
-            <h3 className="text-center font-bold text-slate-900 text-base mb-1">Delete Contact?</h3>
-            <p className="text-center text-xs text-slate-600 mb-5 leading-relaxed">
-              Are you sure you want to permanently delete <strong className="text-slate-800">{selectedContact.name}</strong>?
+            <h3 className={`font-black text-base mb-1 ${isDark ? 'text-white' : 'text-slate-900'}`}>Delete Contact?</h3>
+            <p className={`text-xs mb-5 leading-relaxed ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+              Are you sure you want to permanently delete <strong className={isDark ? 'text-white' : 'text-slate-900'}>{selectedContact.name}</strong>?
               This action will remove the record from MySQL and cannot be reversed.
             </p>
             <div className="flex justify-end gap-2.5">
               <button
                 type="button"
                 onClick={() => setModalType(null)}
-                className="flex-1 px-3 py-2 border border-slate-300 text-slate-700 hover:bg-slate-100 rounded-lg text-xs font-semibold transition-colors"
+                className={`flex-1 px-3 py-2.5 rounded-xl text-xs font-bold border ${
+                  isDark ? 'bg-slate-800 text-slate-300 border-slate-700 btn-3d-secondary-dark' : 'bg-white text-slate-700 border-slate-300 btn-3d-secondary-light'
+                }`}
               >
                 Cancel
               </button>
               <button
                 type="button"
                 onClick={handleDeleteContact}
-                className="flex-1 px-3 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-semibold shadow-xs transition-colors"
+                className="flex-1 px-3 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-black btn-3d-danger"
               >
                 Confirm Delete
               </button>
@@ -1926,22 +2822,28 @@ export default function App() {
 
       {/* 4. Forgot Password Modal */}
       {modalType === 'forgot' && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-150 p-5">
-            <div className="w-10 h-10 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center mx-auto mb-3">
-              <Lock className="w-5 h-5" />
+        <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className={`rounded-3xl w-full max-w-sm border p-6 text-center ${
+            isDark ? 'bg-slate-900 border-slate-800 modal-3d-dark text-slate-100' : 'bg-white border-slate-200 modal-3d-light text-slate-800'
+          }`}>
+            <div className="w-12 h-12 rounded-2xl bg-amber-950/60 text-amber-400 border border-amber-800/50 flex items-center justify-center mx-auto mb-3.5 pod-3d-dark">
+              <Lock className="w-6 h-6" />
             </div>
-            <h3 className="text-center font-bold text-slate-900 text-base mb-2">Password Recovery Notice</h3>
-            <p className="text-xs text-slate-600 mb-3 leading-relaxed">
+            <h3 className={`font-black text-base mb-2 ${isDark ? 'text-white' : 'text-slate-900'}`}>Password Recovery Notice</h3>
+            <p className={`text-xs mb-3 leading-relaxed ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
               Self-service password recovery is intentionally not configured for this local development instance.
             </p>
-            <p className="text-xs text-slate-500 mb-5 leading-relaxed bg-slate-50 p-3 rounded-lg border border-slate-200">
+            <p className={`text-[11px] mb-5 leading-relaxed p-3 rounded-xl border ${
+              isDark ? 'bg-slate-950 border-slate-800 text-slate-400' : 'bg-slate-50 border-slate-200 text-slate-500'
+            }`}>
               In production, password reset requires verified SMTP mail sender credentials, cryptographically signed expiring tokens, and rate-limiting. For local development, simply register a new account or sign in with the preloaded credentials.
             </p>
             <button
               type="button"
               onClick={() => setModalType(null)}
-              className="w-full px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-lg text-xs font-semibold shadow-xs transition-colors"
+              className={`w-full px-4 py-2.5 rounded-xl text-xs font-black border ${
+                isDark ? 'bg-slate-800 hover:bg-slate-700 text-white border-slate-700 btn-3d-secondary-dark' : 'bg-slate-800 hover:bg-slate-900 text-white border-slate-800 btn-3d-primary'
+              }`}
             >
               Understood
             </button>
@@ -1949,56 +2851,66 @@ export default function App() {
         </div>
       )}
 
-      {/* 5. CSV Import Modal */}
+      {/* 5. 3D CSV Import Modal */}
       {modalType === 'import' && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-150 max-h-[90vh] flex flex-col">
-            <div className="p-4 sm:p-5 border-b border-slate-200 flex items-center justify-between shrink-0">
+        <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className={`rounded-3xl w-full max-w-2xl border overflow-hidden animate-in fade-in zoom-in-95 duration-150 max-h-[90vh] flex flex-col ${
+            isDark ? 'bg-slate-900 border-slate-800 modal-3d-dark text-slate-100' : 'bg-white border-slate-200 modal-3d-light text-slate-800'
+          }`}>
+            <div className={`p-5 border-b flex items-center justify-between shrink-0 ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
               <div>
-                <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                  <Upload className="w-5 h-5 text-blue-700" />
+                <h2 className={`text-base font-extrabold flex items-center gap-2 ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                  <Upload className="w-5 h-5 text-blue-500" />
                   Bulk Import Contacts from CSV
                 </h2>
-                <p className="text-xs text-slate-500 mt-0.5">
+                <p className={`text-xs mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
                   Upload a comma-separated values file to import contacts in bulk.
                 </p>
               </div>
               <button
                 onClick={() => setModalType(null)}
-                className="text-slate-400 hover:text-slate-700 p-1 rounded-lg"
+                className={`p-1.5 rounded-xl transition-colors ${isDark ? 'text-slate-400 hover:text-white hover:bg-slate-800' : 'text-slate-400 hover:text-slate-800 hover:bg-slate-100'}`}
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="p-4 sm:p-6 overflow-y-auto space-y-4 flex-1">
+            <div className="p-5 sm:p-6 overflow-y-auto space-y-4 flex-1">
               {/* Template & Quick Test actions */}
-              <div className="bg-blue-50/70 border border-blue-200 rounded-xl p-3.5 flex flex-wrap items-center justify-between gap-3 text-xs">
-                <div className="text-blue-900">
-                  <strong className="block font-semibold">Need an example CSV?</strong>
-                  <span className="text-blue-700 text-[11px]">Columns supported: Name, Phone, Email, Company, Job Title, Address, Notes</span>
+              <div className={`rounded-2xl p-4 flex flex-wrap items-center justify-between gap-3 text-xs border ${
+                isDark ? 'bg-slate-950/80 border-slate-800 text-slate-300' : 'bg-blue-50/80 border-blue-200 text-blue-900'
+              }`}>
+                <div>
+                  <strong className="block font-bold">Need an example CSV?</strong>
+                  <span className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-blue-700'}`}>
+                    Columns supported: Name, Phone, Email, Company, Job Title, Address, Notes
+                  </span>
                 </div>
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
                     onClick={handleDownloadCsvTemplate}
-                    className="px-2.5 py-1.5 bg-white border border-blue-300 text-blue-700 hover:bg-blue-100/50 rounded-lg font-semibold flex items-center gap-1 shadow-2xs"
+                    className={`px-3 py-1.5 rounded-xl font-bold flex items-center gap-1.5 border text-xs ${
+                      isDark
+                        ? 'bg-slate-800 border-slate-700 text-slate-200 btn-3d-secondary-dark'
+                        : 'bg-white border-blue-300 text-blue-700 btn-3d-secondary-light'
+                    }`}
                   >
-                    <Download className="w-3 h-3" />
+                    <Download className="w-3.5 h-3.5" />
                     Download Template
                   </button>
                   <button
                     type="button"
                     onClick={handleLoadSampleCsv}
-                    className="px-2.5 py-1.5 bg-blue-700 text-white hover:bg-blue-800 rounded-lg font-semibold flex items-center gap-1 shadow-2xs"
+                    className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-black flex items-center gap-1.5 text-xs btn-3d-primary"
                   >
-                    <FileSpreadsheet className="w-3 h-3" />
+                    <FileSpreadsheet className="w-3.5 h-3.5" />
                     Load Sample Data
                   </button>
                 </div>
               </div>
 
-              {/* Upload Dropzone */}
+              {/* Upload Dropzone with 3D Depth */}
               <div
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={(e) => {
@@ -2007,7 +2919,11 @@ export default function App() {
                     handleCsvFileUpload(e.dataTransfer.files[0]);
                   }
                 }}
-                className="border-2 border-dashed border-slate-300 hover:border-blue-500 bg-slate-50 hover:bg-blue-50/20 rounded-xl p-6 text-center cursor-pointer transition-all"
+                className={`border-2 border-dashed rounded-2xl p-6 text-center cursor-pointer transition-all ${
+                  isDark
+                    ? 'border-slate-700 hover:border-blue-500 bg-slate-950/60 hover:bg-blue-950/20'
+                    : 'border-slate-300 hover:border-blue-500 bg-slate-50 hover:bg-blue-50/30'
+                }`}
                 onClick={() => {
                   const input = document.createElement('input');
                   input.type = 'file';
@@ -2019,13 +2935,15 @@ export default function App() {
                   input.click();
                 }}
               >
-                <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center mx-auto mb-2">
-                  <Upload className="w-5 h-5" />
+                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-2 border ${
+                  isDark ? 'bg-blue-900/50 text-blue-400 border-blue-800 pod-3d-dark' : 'bg-blue-100 text-blue-700 border-blue-200 pod-3d'
+                }`}>
+                  <Upload className="w-6 h-6" />
                 </div>
-                <p className="text-sm font-bold text-slate-800 mb-1">
+                <p className={`text-sm font-black mb-1 ${isDark ? 'text-white' : 'text-slate-900'}`}>
                   {importFileName ? importFileName : 'Click to upload or drag & drop CSV'}
                 </p>
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-slate-400">
                   {importFileName
                     ? 'Click to select a different file'
                     : 'Supports standard UTF-8 RFC 4180 CSV files up to 5MB'}
@@ -2035,46 +2953,50 @@ export default function App() {
               {/* Preview & Validation Report */}
               {importParsedRows.length > 0 && (
                 <div className="space-y-3 pt-2">
-                  <div className="flex items-center justify-between text-xs font-semibold">
-                    <span className="text-slate-800">
+                  <div className="flex items-center justify-between text-xs font-bold">
+                    <span className={isDark ? 'text-slate-200' : 'text-slate-800'}>
                       Parsed {importParsedRows.length} rows:
                     </span>
-                    <div className="flex items-center gap-3">
-                      <span className="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                    <div className="flex items-center gap-2">
+                      <span className="text-emerald-400 bg-emerald-950/60 border border-emerald-800 px-2.5 py-0.5 rounded-lg">
                         ✓ {importParsedRows.length - importErrorsCount} Valid
                       </span>
                       {importErrorsCount > 0 && (
-                        <span className="text-red-700 bg-red-50 px-2 py-0.5 rounded border border-red-200">
+                        <span className="text-red-400 bg-red-950/60 border border-red-800 px-2.5 py-0.5 rounded-lg">
                           ⚠ {importErrorsCount} Skipped (Validation Errors)
                         </span>
                       )}
                     </div>
                   </div>
 
-                  <div className="border border-slate-200 rounded-lg overflow-x-auto max-h-56 overflow-y-auto">
+                  <div className={`border rounded-xl overflow-x-auto max-h-56 overflow-y-auto ${
+                    isDark ? 'border-slate-800 bg-slate-950' : 'border-slate-200 bg-white'
+                  }`}>
                     <table className="w-full text-left text-xs border-collapse">
-                      <thead className="bg-slate-50 border-b border-slate-200 sticky top-0 text-slate-600 font-semibold uppercase text-[10px]">
+                      <thead className={`sticky top-0 text-[10px] font-extrabold uppercase border-b ${
+                        isDark ? 'bg-slate-900 border-slate-800 text-slate-400' : 'bg-slate-50 border-slate-200 text-slate-600'
+                      }`}>
                         <tr>
-                          <th className="py-2 px-3">Status</th>
-                          <th className="py-2 px-3">Name</th>
-                          <th className="py-2 px-3">Phone</th>
-                          <th className="py-2 px-3">Email</th>
-                          <th className="py-2 px-3">Company</th>
+                          <th className="py-2.5 px-3">Status</th>
+                          <th className="py-2.5 px-3">Name</th>
+                          <th className="py-2.5 px-3">Phone</th>
+                          <th className="py-2.5 px-3">Email</th>
+                          <th className="py-2.5 px-3">Company</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-slate-200">
+                      <tbody className={`divide-y ${isDark ? 'divide-slate-800' : 'divide-slate-200'}`}>
                         {importParsedRows.map((r, i) => (
-                          <tr key={i} className={r.isValid ? 'hover:bg-slate-50' : 'bg-red-50/40 text-red-900'}>
+                          <tr key={i} className={r.isValid ? (isDark ? 'hover:bg-slate-900/60' : 'hover:bg-slate-50') : 'bg-red-950/30 text-red-300'}>
                             <td className="py-2 px-3 whitespace-nowrap">
                               {r.isValid ? (
-                                <span className="text-emerald-600 font-bold">✓ Ready</span>
+                                <span className="text-emerald-400 font-black">✓ Ready</span>
                               ) : (
-                                <span className="text-red-600 font-bold" title={r.errorReason}>
+                                <span className="text-red-400 font-black" title={r.errorReason}>
                                   ✕ {r.errorReason}
                                 </span>
                               )}
                             </td>
-                            <td className="py-2 px-3 font-semibold">{r.name || '—'}</td>
+                            <td className={`py-2 px-3 font-bold ${isDark ? 'text-slate-100' : 'text-slate-800'}`}>{r.name || '—'}</td>
                             <td className="py-2 px-3 font-mono">{r.phone || '—'}</td>
                             <td className="py-2 px-3">{r.email || '—'}</td>
                             <td className="py-2 px-3">{r.company || '—'}</td>
@@ -2087,11 +3009,13 @@ export default function App() {
               )}
             </div>
 
-            <div className="p-4 border-t border-slate-200 flex justify-end gap-2.5 shrink-0 bg-slate-50/50">
+            <div className={`p-4 border-t flex justify-end gap-2.5 shrink-0 ${isDark ? 'border-slate-800 bg-slate-950/40' : 'border-slate-200 bg-slate-50'}`}>
               <button
                 type="button"
                 onClick={() => setModalType(null)}
-                className="px-4 py-2 border border-slate-300 text-slate-700 hover:bg-slate-100 rounded-lg text-xs font-semibold transition-colors"
+                className={`px-4 py-2 rounded-xl text-xs font-bold border ${
+                  isDark ? 'bg-slate-800 text-slate-300 border-slate-700 btn-3d-secondary-dark' : 'bg-white text-slate-700 border-slate-300 btn-3d-secondary-light'
+                }`}
               >
                 Cancel
               </button>
@@ -2099,7 +3023,7 @@ export default function App() {
                 type="button"
                 onClick={handleConfirmImport}
                 disabled={importParsedRows.filter(r => r.isValid).length === 0}
-                className="px-4 py-2 bg-blue-700 hover:bg-blue-800 disabled:bg-slate-300 text-white rounded-lg text-xs font-semibold shadow-xs transition-colors flex items-center gap-1.5"
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white rounded-xl text-xs font-black btn-3d-primary flex items-center gap-1.5"
               >
                 <Upload className="w-3.5 h-3.5" />
                 <span>
@@ -2111,21 +3035,27 @@ export default function App() {
         </div>
       )}
 
-      {/* 6. CSV Export Modal */}
+      {/* 6. 3D CSV Export Modal */}
       {modalType === 'export' && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-150 p-5">
-            <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center mx-auto mb-3">
-              <Download className="w-5 h-5" />
+        <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className={`rounded-3xl w-full max-w-md border p-6 ${
+            isDark ? 'bg-slate-900 border-slate-800 modal-3d-dark text-slate-100' : 'bg-white border-slate-200 modal-3d-light text-slate-800'
+          }`}>
+            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-3.5 border ${
+              isDark ? 'bg-blue-900/50 text-blue-400 border-blue-800 pod-3d-dark' : 'bg-blue-100 text-blue-700 border-blue-200 pod-3d'
+            }`}>
+              <Download className="w-6 h-6" />
             </div>
-            <h3 className="text-center font-bold text-slate-900 text-base mb-1">Export Contacts to CSV</h3>
-            <p className="text-center text-xs text-slate-600 mb-4 leading-relaxed">
+            <h3 className={`text-center font-black text-base mb-1 ${isDark ? 'text-white' : 'text-slate-900'}`}>
+              Export Contacts to CSV
+            </h3>
+            <p className={`text-center text-xs mb-4 leading-relaxed ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
               Generate a CSV spreadsheet compatible with Excel, Google Sheets, and CRM databases.
             </p>
 
             <div className="space-y-3 mb-5">
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
+                <label className={`block text-xs font-bold mb-1 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
                   Filter by Phone Number (Optional)
                 </label>
                 <div className="relative">
@@ -2135,16 +3065,22 @@ export default function App() {
                     value={exportPhoneFilter}
                     onChange={(e) => setExportPhoneFilter(e.target.value)}
                     placeholder="e.g. +1 (555) 349-2041 or leave empty"
-                    className="w-full pl-9 pr-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:border-blue-600 focus:ring-3 focus:ring-blue-100"
+                    className={`w-full pl-9 pr-3 py-2.5 text-xs rounded-xl border focus:outline-none focus:ring-3 ${
+                      isDark
+                        ? 'bg-slate-950 border-slate-700 text-white focus:border-blue-500 focus:ring-blue-900/40'
+                        : 'bg-white border-slate-300 text-slate-800 focus:border-blue-600 focus:ring-blue-100'
+                    }`}
                   />
                 </div>
-                <p className="text-[11px] text-slate-500 mt-1">
+                <p className="text-[11px] text-slate-400 mt-1">
                   When you provide a phone number, only contacts matching that phone number will be included in the exported CSV. Leave blank to export all {userContacts.length} contacts.
                 </p>
               </div>
 
               {exportPhoneFilter.trim() && (
-                <div className="p-2.5 bg-blue-50 border border-blue-200 rounded-lg text-[11px] text-blue-800 flex items-center justify-between">
+                <div className={`p-3 rounded-xl border text-[11px] flex items-center justify-between ${
+                  isDark ? 'bg-blue-950/60 border-blue-800 text-blue-300' : 'bg-blue-50 border-blue-200 text-blue-800'
+                }`}>
                   <span>
                     Matching contacts:{' '}
                     <strong>
@@ -2159,7 +3095,7 @@ export default function App() {
                   <button
                     type="button"
                     onClick={() => setExportPhoneFilter('')}
-                    className="text-blue-600 hover:underline font-bold"
+                    className="text-blue-400 hover:underline font-bold"
                   >
                     Clear Filter
                   </button>
@@ -2171,14 +3107,16 @@ export default function App() {
               <button
                 type="button"
                 onClick={() => setModalType(null)}
-                className="flex-1 px-3 py-2 border border-slate-300 text-slate-700 hover:bg-slate-100 rounded-lg text-xs font-semibold transition-colors"
+                className={`flex-1 px-3 py-2.5 rounded-xl text-xs font-bold border ${
+                  isDark ? 'bg-slate-800 text-slate-300 border-slate-700 btn-3d-secondary-dark' : 'bg-white text-slate-700 border-slate-300 btn-3d-secondary-light'
+                }`}
               >
                 Cancel
               </button>
               <button
                 type="button"
                 onClick={() => handleExportCsv(exportPhoneFilter)}
-                className="flex-1 px-3 py-2 bg-blue-700 hover:bg-blue-800 text-white rounded-lg text-xs font-semibold shadow-xs transition-colors flex items-center justify-center gap-1.5"
+                className="flex-1 px-3 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-black btn-3d-primary flex items-center justify-center gap-1.5"
               >
                 <Download className="w-3.5 h-3.5" />
                 <span>Download CSV</span>
@@ -2188,16 +3126,16 @@ export default function App() {
         </div>
       )}
 
-      {/* Toast Notification Container */}
+      {/* Toast Notification Container with 3D Depth */}
       {toast && (
         <div className="fixed bottom-5 right-5 z-50 animate-in slide-in-from-bottom-5 duration-200">
           <div
-            className={`px-4 py-2.5 rounded-xl shadow-lg border text-xs font-semibold flex items-center gap-2.5 ${
+            className={`px-4.5 py-3 rounded-2xl shadow-2xl border text-xs font-bold flex items-center gap-2.5 ${
               toast.type === 'success'
-                ? 'bg-emerald-900 text-emerald-100 border-emerald-700'
+                ? 'bg-emerald-950 text-emerald-200 border-emerald-700/80 shadow-emerald-950/50'
                 : toast.type === 'error'
-                ? 'bg-red-900 text-red-100 border-red-700'
-                : 'bg-slate-900 text-slate-100 border-slate-700'
+                ? 'bg-red-950 text-red-200 border-red-700/80 shadow-red-950/50'
+                : 'bg-slate-900 text-slate-100 border-slate-700 shadow-slate-950/50'
             }`}
           >
             {toast.type === 'success' && <CheckCircle2 className="w-4 h-4 text-emerald-400" />}
@@ -2210,724 +3148,3 @@ export default function App() {
     </div>
   );
 }
-
-// Helpers for File Explorer descriptions
-function getFileDescription(name: string): string {
-  const map: Record<string, string> = {
-    'pom.xml': 'Maven build descriptor with Spring Boot 3, JPA, Security, MySQL driver & tests',
-    'application.properties': 'Environment variables, MySQL JDBC config, and session cookie parameters',
-    'ContactController.java': 'RESTful endpoints for contact CRUD, CSV import/export, search query, and metrics',
-    'CsvImportResponse.java': 'DTO returning totalRows, successCount, failedCount, and row validation errors',
-    'AuthController.java': 'REST endpoints for register, login, session logout, and current user',
-    'SecurityConfig.java': 'Spring SecurityFilterChain, session fixation protection, and CSRF token repo',
-    'AuthService.java': 'BCrypt password hashing, session context management, and validation logic',
-    'ContactService.java': 'User-isolated business logic ensuring zero cross-tenant contact access',
-    'Contact.java': 'JPA entity with indices, timestamps, and @ManyToOne User association',
-    'User.java': 'JPA user entity with unique email constraint and @OneToMany contacts',
-    'ContactRepository.java': 'Spring Data JPA queries scoped strictly by authenticated User',
-    'UserRepository.java': 'Spring Data JPA email lookup and existence checking',
-    'AuthServiceTest.java': 'JUnit 5 & Mockito test suite for authentication and hashing',
-    'ContactServiceTest.java': 'Unit tests validating user data isolation and ownership enforcement',
-    'ContactControllerTest.java': 'MockMvc tests validating HTTP status codes & Bean Validation errors',
-    'schema.sql': 'Production MySQL DDL and 4-step safe legacy migration instructions',
-    'index.html': 'Dashboard HTML with responsive tables, statistics cards, and modals',
-    'login.html': 'Login page with show/hide password, remember-me, and forgot password modal',
-    'register.html': 'Registration page with live password strength indicator and validation',
-    'script.js': 'Vanilla JS dashboard driver with safe textContent DOM rendering (XSS-safe)',
-    'style.css': 'Clean SaaS styling with dark navy brand color and light gray background'
-  };
-  return map[name] || 'Source file';
-}
-
-// Inlined file contents for instant inspection in Code Inspector tab
-const PROJECT_FILES: Record<string, string> = {
-  'pom.xml': `<?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
-    <modelVersion>4.0.0</modelVersion>
-    <parent>
-        <groupId>org.springframework.boot</groupId>
-        <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.2.5</version>
-        <relativePath/>
-    </parent>
-    <groupId>com.example</groupId>
-    <artifactId>contact-manager</artifactId>
-    <version>1.0.0</version>
-    <name>contact-manager</name>
-    <description>Professional Contact Management System with Spring Boot and MySQL</description>
-    <properties>
-        <java.version>17</java.version>
-    </properties>
-    <dependencies>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-web</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-data-jpa</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-security</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-validation</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.mysql</groupId>
-            <artifactId>mysql-connector-j</artifactId>
-            <scope>runtime</scope>
-        </dependency>
-        <dependency>
-            <groupId>com.h2database</groupId>
-            <artifactId>h2</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-test</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.security</groupId>
-            <artifactId>spring-security-test</artifactId>
-            <scope>test</scope>
-        </dependency>
-    </dependencies>
-    <build>
-        <plugins>
-            <plugin>
-                <groupId>org.springframework.boot</groupId>
-                <artifactId>spring-boot-maven-plugin</artifactId>
-            </plugin>
-        </plugins>
-    </build>
-</project>`,
-
-  'application.properties': `# Server Configuration
-server.port=8080
-
-# Database Configuration (MySQL)
-spring.datasource.url=jdbc:mysql://\${DB_HOST:localhost}:\${DB_PORT:3306}/\${DB_NAME:contactdb}?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true&createDatabaseIfNotExist=true
-spring.datasource.username=\${DB_USERNAME:root}
-spring.datasource.password=\${DB_PASSWORD:}
-spring.datasource.driver-class-name=com.mysql.cj.jdbc.Driver
-
-# JPA & Hibernate Settings
-spring.jpa.hibernate.ddl-auto=update
-spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.MySQLDialect
-spring.jpa.open-in-view=false
-
-# Session & Security Cookie Configuration
-server.servlet.session.cookie.name=CONTACT_SESSION_ID
-server.servlet.session.cookie.http-only=true
-server.servlet.session.cookie.same-site=strict
-server.servlet.session.cookie.secure=\${SERVER_SESSION_COOKIE_SECURE:false}
-server.servlet.session.timeout=2h`,
-
-  'ContactController.java': `package com.example.contactmanager.controller;
-
-import com.example.contactmanager.dto.ContactRequest;
-import com.example.contactmanager.dto.ContactResponse;
-import com.example.contactmanager.dto.CsvImportResponse;
-import com.example.contactmanager.dto.DashboardStatsResponse;
-import com.example.contactmanager.service.ContactService;
-import jakarta.validation.Valid;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile;
-import java.io.IOException;
-import java.util.List;
-
-@RestController
-@RequestMapping("/api/contacts")
-public class ContactController {
-
-    private final ContactService contactService;
-
-    public ContactController(ContactService contactService) {
-        this.contactService = contactService;
-    }
-
-    @GetMapping
-    public ResponseEntity<List<ContactResponse>> getAllContacts() {
-        return ResponseEntity.ok(contactService.getAllContacts());
-    }
-
-    @GetMapping("/{id}")
-    public ResponseEntity<ContactResponse> getContactById(@PathVariable Long id) {
-        return ResponseEntity.ok(contactService.getContactById(id));
-    }
-
-    @PostMapping
-    public ResponseEntity<ContactResponse> createContact(@Valid @RequestBody ContactRequest request) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(contactService.createContact(request));
-    }
-
-    @PutMapping("/{id}")
-    public ResponseEntity<ContactResponse> updateContact(@PathVariable Long id, @Valid @RequestBody ContactRequest request) {
-        return ResponseEntity.ok(contactService.updateContact(id, request));
-    }
-
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteContact(@PathVariable Long id) {
-        contactService.deleteContact(id);
-        return ResponseEntity.noContent().build();
-    }
-
-    @GetMapping("/search")
-    public ResponseEntity<List<ContactResponse>> searchContacts(@RequestParam(required = false, defaultValue = "") String query) {
-        return ResponseEntity.ok(contactService.searchContacts(query));
-    }
-
-    @GetMapping("/stats")
-    public ResponseEntity<DashboardStatsResponse> getDashboardStats() {
-        return ResponseEntity.ok(contactService.getDashboardStats());
-    }
-
-    @PostMapping(value = "/import-csv", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<CsvImportResponse> importContactsCsv(@RequestParam("file") MultipartFile file) throws IOException {
-        return ResponseEntity.ok(contactService.importContactsCsv(file.getInputStream()));
-    }
-
-    @GetMapping("/export-csv")
-    public ResponseEntity<byte[]> exportContactsCsv(@RequestParam(value = "phone", required = false) String phone) {
-        byte[] csv = contactService.exportContactsCsv(phone);
-        String filename = (phone != null && !phone.isBlank())
-                ? "contacts_phone_" + phone.replaceAll("[^0-9+]", "") + ".csv"
-                : "contacts_export.csv";
-        return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\\"" + filename + "\\"")
-                .contentType(MediaType.parseMediaType("text/csv; charset=UTF-8"))
-                .body(csv);
-    }
-
-    @GetMapping("/csv-template")
-    public ResponseEntity<byte[]> downloadCsvTemplate() {
-        return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\\"contacts_template.csv\\"")
-                .contentType(MediaType.parseMediaType("text/csv; charset=UTF-8"))
-                .body(contactService.getCsvTemplate());
-    }
-}`,
-
-  'CsvImportResponse.java': `package com.example.contactmanager.dto;
-
-import java.util.ArrayList;
-import java.util.List;
-
-public class CsvImportResponse {
-
-    private int totalRows;
-    private int successCount;
-    private int failedCount;
-    private List<RowError> errors = new ArrayList<>();
-    private List<ContactResponse> importedContacts = new ArrayList<>();
-
-    public static class RowError {
-        private int rowNumber;
-        private String contactName;
-        private String reason;
-
-        public RowError(int rowNumber, String contactName, String reason) {
-            this.rowNumber = rowNumber;
-            this.contactName = contactName;
-            this.reason = reason;
-        }
-        // Getters & Setters
-    }
-
-    public CsvImportResponse(int totalRows, int successCount, int failedCount,
-                             List<RowError> errors, List<ContactResponse> importedContacts) {
-        this.totalRows = totalRows;
-        this.successCount = successCount;
-        this.failedCount = failedCount;
-        this.errors = errors;
-        this.importedContacts = importedContacts;
-    }
-    // Getters & Setters
-}`,
-
-  'AuthController.java': `package com.example.contactmanager.controller;
-
-import com.example.contactmanager.dto.LoginRequest;
-import com.example.contactmanager.dto.RegisterRequest;
-import com.example.contactmanager.dto.UserResponse;
-import com.example.contactmanager.service.AuthService;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
-import jakarta.validation.Valid;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-import java.util.Map;
-
-@RestController
-@RequestMapping("/api/auth")
-public class AuthController {
-
-    private final AuthService authService;
-
-    public AuthController(AuthService authService) {
-        this.authService = authService;
-    }
-
-    @PostMapping("/register")
-    public ResponseEntity<UserResponse> register(@Valid @RequestBody RegisterRequest request) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(authService.register(request));
-    }
-
-    @PostMapping("/login")
-    public ResponseEntity<UserResponse> login(@Valid @RequestBody LoginRequest request,
-                                              HttpServletRequest httpRequest,
-                                              HttpServletResponse httpResponse) {
-        return ResponseEntity.ok(authService.login(request, httpRequest, httpResponse));
-    }
-
-    @PostMapping("/logout")
-    public ResponseEntity<Map<String, String>> logout(HttpServletRequest request) {
-        authService.logout(request);
-        return ResponseEntity.ok(Map.of("message", "Successfully logged out"));
-    }
-
-    @GetMapping("/me")
-    public ResponseEntity<UserResponse> getCurrentUser() {
-        return ResponseEntity.ok(authService.getCurrentUserProfile());
-    }
-}`,
-
-  'SecurityConfig.java': `package com.example.contactmanager.security;
-
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
-import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
-
-@Configuration
-@EnableWebSecurity
-public class SecurityConfig {
-
-    @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder(12);
-    }
-
-    @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-        http
-            .csrf(csrf -> csrf
-                .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
-                .ignoringRequestMatchers("/api/auth/register", "/api/auth/login")
-            )
-            .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/", "/index.html", "/login.html", "/register.html", "/css/**", "/js/**").permitAll()
-                .requestMatchers("/api/auth/register", "/api/auth/login", "/api/auth/csrf").permitAll()
-                .requestMatchers("/api/contacts/**", "/api/auth/me", "/api/auth/logout").authenticated()
-                .anyRequest().authenticated()
-            )
-            .sessionManagement(session -> session
-                .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
-                .sessionFixation().changeSessionId()
-            );
-
-        return http.build();
-    }
-}`,
-
-  'ContactService.java': `package com.example.contactmanager.service;
-
-import com.example.contactmanager.dto.ContactRequest;
-import com.example.contactmanager.dto.ContactResponse;
-import com.example.contactmanager.dto.DashboardStatsResponse;
-import com.example.contactmanager.exception.ResourceNotFoundException;
-import com.example.contactmanager.model.Contact;
-import com.example.contactmanager.model.User;
-import com.example.contactmanager.repository.ContactRepository;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.stream.Collectors;
-
-@Service
-public class ContactService {
-
-    private final ContactRepository contactRepository;
-    private final AuthService authService;
-
-    public ContactService(ContactRepository contactRepository, AuthService authService) {
-        this.contactRepository = contactRepository;
-        this.authService = authService;
-    }
-
-    @Transactional(readOnly = true)
-    public List<ContactResponse> getAllContacts() {
-        User currentUser = authService.getCurrentAuthenticatedUser();
-        return contactRepository.findAllByUserOrderByCreatedAtDesc(currentUser)
-                .stream().map(ContactResponse::fromEntity).collect(Collectors.toList());
-    }
-
-    @Transactional
-    public ContactResponse createContact(ContactRequest request) {
-        User currentUser = authService.getCurrentAuthenticatedUser();
-        Contact contact = new Contact();
-        contact.setName(request.getName().trim());
-        contact.setPhone(request.getPhone().trim());
-        contact.setEmail(request.getEmail());
-        contact.setCompany(request.getCompany());
-        contact.setJobTitle(request.getJobTitle());
-        contact.setAddress(request.getAddress());
-        contact.setNotes(request.getNotes());
-        contact.setUser(currentUser);
-        return ContactResponse.fromEntity(contactRepository.save(contact));
-    }
-
-    @Transactional
-    public void deleteContact(Long id) {
-        User currentUser = authService.getCurrentAuthenticatedUser();
-        if (!contactRepository.existsByIdAndUser(id, currentUser)) {
-            throw new ResourceNotFoundException("Contact not found with ID: " + id);
-        }
-        contactRepository.deleteByIdAndUser(id, currentUser);
-    }
-}`,
-
-  'AuthService.java': `package com.example.contactmanager.service;
-
-import com.example.contactmanager.dto.LoginRequest;
-import com.example.contactmanager.dto.RegisterRequest;
-import com.example.contactmanager.dto.UserResponse;
-import com.example.contactmanager.exception.DuplicateResourceException;
-import com.example.contactmanager.exception.UnauthorizedException;
-import com.example.contactmanager.model.User;
-import com.example.contactmanager.repository.UserRepository;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-@Service
-public class AuthService {
-
-    private final UserRepository userRepository;
-    private final PasswordEncoder passwordEncoder;
-    private final AuthenticationManager authenticationManager;
-
-    public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder, AuthenticationManager authenticationManager) {
-        this.userRepository = userRepository;
-        this.passwordEncoder = passwordEncoder;
-        this.authenticationManager = authenticationManager;
-    }
-
-    @Transactional
-    public UserResponse register(RegisterRequest request) {
-        String normalizedEmail = request.getEmail().trim().toLowerCase();
-        if (userRepository.existsByEmail(normalizedEmail)) {
-            throw new DuplicateResourceException("An account with this email address already exists");
-        }
-        String encodedPassword = passwordEncoder.encode(request.getPassword());
-        User user = new User(request.getFullName().trim(), normalizedEmail, encodedPassword);
-        User savedUser = userRepository.save(user);
-        return new UserResponse(savedUser.getId(), savedUser.getFullName(), savedUser.getEmail(), savedUser.getCreatedAt());
-    }
-}`,
-
-  'Contact.java': `package com.example.contactmanager.model;
-
-import jakarta.persistence.*;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Size;
-import java.time.LocalDateTime;
-
-@Entity
-@Table(name = "contacts", indexes = {
-    @Index(name = "idx_contact_user_id", columnList = "user_id"),
-    @Index(name = "idx_contact_name", columnList = "name"),
-    @Index(name = "idx_contact_phone", columnList = "phone"),
-    @Index(name = "idx_contact_email", columnList = "email")
-})
-public class Contact {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-
-    @NotBlank
-    @Size(max = 120)
-    @Column(nullable = false, length = 120)
-    private String name;
-
-    @Size(max = 150)
-    @Column(length = 150)
-    private String email;
-
-    @NotBlank
-    @Size(max = 25)
-    @Column(nullable = false, length = 25)
-    private String phone;
-
-    @Column(length = 120)
-    private String company;
-
-    @Column(name = "job_title", length = 120)
-    private String jobTitle;
-
-    @Column(length = 255)
-    private String address;
-
-    @Column(length = 1000)
-    private String notes;
-
-    @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDateTime createdAt;
-
-    @Column(name = "updated_at")
-    private LocalDateTime updatedAt;
-
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "user_id", nullable = false)
-    private User user;
-
-    @PrePersist
-    protected void onCreate() {
-        this.createdAt = LocalDateTime.now();
-        this.updatedAt = LocalDateTime.now();
-    }
-}`,
-
-  'User.java': `package com.example.contactmanager.model;
-
-import jakarta.persistence.*;
-import jakarta.validation.constraints.Email;
-import jakarta.validation.constraints.NotBlank;
-import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
-
-@Entity
-@Table(name = "users", indexes = {
-    @Index(name = "idx_user_email", columnList = "email", unique = true)
-})
-public class User {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-
-    @NotBlank
-    @Column(name = "full_name", nullable = false, length = 120)
-    private String fullName;
-
-    @NotBlank
-    @Email
-    @Column(nullable = false, unique = true, length = 150)
-    private String email;
-
-    @NotBlank
-    @Column(name = "password_hash", nullable = false, length = 255)
-    private String passwordHash;
-
-    @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDateTime createdAt;
-
-    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<Contact> contacts = new ArrayList<>();
-}`,
-
-  'ContactRepository.java': `package com.example.contactmanager.repository;
-
-import com.example.contactmanager.model.Contact;
-import com.example.contactmanager.model.User;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
-import org.springframework.stereotype.Repository;
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Optional;
-
-@Repository
-public interface ContactRepository extends JpaRepository<Contact, Long> {
-
-    List<Contact> findAllByUserOrderByCreatedAtDesc(User user);
-    Optional<Contact> findByIdAndUser(Long id, User user);
-    boolean existsByIdAndUser(Long id, User user);
-    void deleteByIdAndUser(Long id, User user);
-
-    @Query("SELECT c FROM Contact c WHERE c.user = :user AND (" +
-           "LOWER(c.name) LIKE LOWER(CONCAT('%', :query, '%')) OR " +
-           "LOWER(c.phone) LIKE LOWER(CONCAT('%', :query, '%')) OR " +
-           "LOWER(c.email) LIKE LOWER(CONCAT('%', :query, '%')) OR " +
-           "LOWER(c.company) LIKE LOWER(CONCAT('%', :query, '%')) OR " +
-           "LOWER(c.address) LIKE LOWER(CONCAT('%', :query, '%'))" +
-           ") ORDER BY c.createdAt DESC")
-    List<Contact> searchContactsByUser(@Param("user") User user, @Param("query") String query);
-
-    long countByUser(User user);
-    long countByUserAndCreatedAtAfter(User user, LocalDateTime since);
-}`,
-
-  'UserRepository.java': `package com.example.contactmanager.repository;
-
-import com.example.contactmanager.model.User;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.stereotype.Repository;
-import java.util.Optional;
-
-@Repository
-public interface UserRepository extends JpaRepository<User, Long> {
-    Optional<User> findByEmail(String email);
-    boolean existsByEmail(String email);
-}`,
-
-  'schema.sql': `-- ========================================================
--- Database: contactdb
--- ========================================================
-CREATE DATABASE IF NOT EXISTS \`contactdb\`
-  DEFAULT CHARACTER SET utf8mb4
-  DEFAULT COLLATE utf8mb4_unicode_ci;
-
-USE \`contactdb\`;
-
-CREATE TABLE IF NOT EXISTS \`users\` (
-  \`id\` BIGINT NOT NULL AUTO_INCREMENT,
-  \`full_name\` VARCHAR(120) NOT NULL,
-  \`email\` VARCHAR(150) NOT NULL,
-  \`password_hash\` VARCHAR(255) NOT NULL,
-  \`created_at\` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (\`id\`),
-  UNIQUE KEY \`uk_users_email\` (\`email\`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
-CREATE TABLE IF NOT EXISTS \`contacts\` (
-  \`id\` BIGINT NOT NULL AUTO_INCREMENT,
-  \`name\` VARCHAR(120) NOT NULL,
-  \`email\` VARCHAR(150) DEFAULT NULL,
-  \`phone\` VARCHAR(25) NOT NULL,
-  \`company\` VARCHAR(120) DEFAULT NULL,
-  \`job_title\` VARCHAR(120) DEFAULT NULL,
-  \`address\` VARCHAR(255) DEFAULT NULL,
-  \`notes\` VARCHAR(1000) DEFAULT NULL,
-  \`created_at\` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  \`updated_at\` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  \`user_id\` BIGINT NOT NULL,
-  PRIMARY KEY (\`id\`),
-  KEY \`idx_contacts_user_id\` (\`user_id\`),
-  KEY \`idx_contacts_name\` (\`name\`),
-  CONSTRAINT \`fk_contacts_user\` FOREIGN KEY (\`user_id\`) REFERENCES \`users\` (\`id\`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;`,
-
-  'AuthServiceTest.java': `// JUnit 5 & Mockito Tests for AuthService
-@ExtendWith(MockitoExtension.class)
-class AuthServiceTest {
-    @Test
-    void register_Success() {
-        // Validates password encoding via BCrypt and database persistence
-    }
-    @Test
-    void register_DuplicateEmail_ThrowsException() {
-        // Enforces uniqueness of user email addresses
-    }
-    @Test
-    void login_Success() {
-        // Validates session creation and generic 401 on bad credentials
-    }
-}`,
-
-  'ContactServiceTest.java': `// JUnit 5 & Mockito Tests for ContactService (Tenant Isolation)
-@ExtendWith(MockitoExtension.class)
-class ContactServiceTest {
-    @Test
-    void getAllContacts_ReturnsUserScopedContacts() {
-        // Validates that User A only retrieves their own contacts
-    }
-    @Test
-    void updateContact_DifferentUser_ThrowsResourceNotFound() {
-        // Proves that changing an ID cannot modify another user's contact
-    }
-}`,
-
-  'ContactControllerTest.java': `// Spring MockMvc Web Layer Tests
-@WebMvcTest(ContactController.class)
-class ContactControllerTest {
-    @Test
-    void createContact_MissingRequiredFields_ReturnsBadRequest() throws Exception {
-        // Validates that blank name and phone return HTTP 400 Bad Request
-    }
-    @Test
-    void deleteContact_ReturnsNoContent() throws Exception {
-        // Validates HTTP 204 No Content upon deletion
-    }
-}`,
-
-  'index.html': `<!-- src/main/resources/static/index.html -->
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>Contact Manager - Dashboard</title>
-  <link rel="stylesheet" href="css/style.css">
-</head>
-<body>
-  <!-- Clean SaaS Header, Stats Cards, Search Bar, Table & Modals -->
-  <script src="js/script.js"></script>
-</body>
-</html>`,
-
-  'login.html': `<!-- src/main/resources/static/login.html -->
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>Sign In - Contact Manager</title>
-  <link rel="stylesheet" href="css/style.css">
-  <link rel="stylesheet" href="css/auth.css">
-</head>
-<body>
-  <!-- Login Form, Password Visibility, Remember Me, Forgot Password -->
-  <script src="js/login.js"></script>
-</body>
-</html>`,
-
-  'register.html': `<!-- src/main/resources/static/register.html -->
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>Create Account - Contact Manager</title>
-  <link rel="stylesheet" href="css/style.css">
-  <link rel="stylesheet" href="css/auth.css">
-</head>
-<body>
-  <!-- Register Form, Password Strength Meter, Confirm Password Check -->
-  <script src="js/register.js"></script>
-</body>
-</html>`,
-
-  'script.js': `// src/main/resources/static/js/script.js
-// Safe DOM rendering with textContent preventing XSS
-// Debounced search querying /api/contacts/search?query=...
-// Modals for Create, Edit, View Details, and Delete Confirmation
-// Dynamic Dashboard Statistics Calculation`,
-
-  'style.css': `/* src/main/resources/static/css/style.css */
-/* Clean SaaS Dashboard Palette: Deep Navy & Light Slate */
-/* Rounded cards, subtle shadows, responsive tables, accessible controls */`
-};

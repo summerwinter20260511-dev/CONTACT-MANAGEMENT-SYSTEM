@@ -280,13 +280,7 @@ document.addEventListener('DOMContentLoaded', () => {
         tdAddress.appendChild(noAddr);
       }
 
-      // 6. Date Created Cell
-      const tdDate = document.createElement('td');
-      tdDate.style.fontSize = '0.8125rem';
-      tdDate.style.color = 'var(--color-slate-500)';
-      tdDate.textContent = formatDate(contact.createdAt);
-
-      // 7. Actions Cell
+      // 6. Actions Cell
       const tdActions = document.createElement('td');
       tdActions.style.textAlign = 'right';
 
@@ -326,7 +320,6 @@ document.addEventListener('DOMContentLoaded', () => {
       tr.appendChild(tdPhone);
       tr.appendChild(tdCompany);
       tr.appendChild(tdAddress);
-      tr.appendChild(tdDate);
       tr.appendChild(tdActions);
 
       contactsTbody.appendChild(tr);
