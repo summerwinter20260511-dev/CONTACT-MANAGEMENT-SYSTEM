@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Create Account - Contact Manager</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/auth.css">
+</head>
+<body>
+  <div class="auth-wrapper">
+    <div class="auth-card">
+      <div class="auth-header">
+        <div class="auth-brand-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
+            <circle cx="9" cy="7" r="4"></circle>
+            <line x1="19" y1="8" x2="19" y2="14"></line>
+            <line x1="22" y1="11" x2="16" y2="11"></line>
+          </svg>
+        </div>
+        <h1>Create Account</h1>
+        <p>Start organizing your personal and professional contacts</p>
+      </div>
+
+      <div id="authAlert" class="auth-alert" role="alert"></div>
+
+      <form id="registerForm" novalidate>
+        <div class="form-group" style="margin-bottom: 1.125rem;">
+          <label for="fullName" class="form-label">Full Name <span class="required-star">*</span></label>
+          <input
+            type="text"
+            id="fullName"
+            name="fullName"
+            class="form-input"
+            placeholder="Johnathan Davis"
+            autocomplete="name"
+            required
+          >
+          <div id="fullNameError" class="field-error-msg"></div>
+        </div>
+
+        <div class="form-group" style="margin-bottom: 1.125rem;">
+          <label for="email" class="form-label">Email Address <span class="required-star">*</span></label>
+          <input
+            type="email"
+            id="email"
+            name="email"
+            class="form-input"
+            placeholder="john@example.com"
+            autocomplete="email"
+            required
+          >
+          <div id="emailError" class="field-error-msg"></div>
+        </div>
+
+        <div class="form-group" style="margin-bottom: 1.125rem;">
+          <label for="password" class="form-label">Password <span class="required-star">*</span></label>
+          <div class="password-input-group">
+            <input
+              type="password"
+              id="password"
+              name="password"
+              class="form-input"
+              placeholder="Minimum 8 characters"
+              autocomplete="new-password"
+              required
+            >
+            <button type="button" id="togglePasswordBtn" class="password-toggle-btn" aria-label="Toggle password visibility">
+              <span>👁️</span>
+            </button>
+          </div>
+          <!-- Password strength meter -->
+          <div class="strength-bar-container">
+            <div class="strength-bar">
+              <div id="strengthFill" class="strength-fill"></div>
+            </div>
+            <div class="strength-text">
+              <span id="strengthLabel">Enter password</span>
+              <span style="color: var(--color-slate-400);">Min 8 chars</span>
+            </div>
+          </div>
+          <div id="passwordError" class="field-error-msg"></div>
+        </div>
+
+        <div class="form-group" style="margin-bottom: 1.5rem;">
+          <label for="confirmPassword" class="form-label">Confirm Password <span class="required-star">*</span></label>
+          <div class="password-input-group">
+            <input
+              type="password"
+              id="confirmPassword"
+              name="confirmPassword"
+              class="form-input"
+              placeholder="Re-enter password"
+              autocomplete="new-password"
+              required
+            >
+            <button type="button" id="toggleConfirmPasswordBtn" class="password-toggle-btn" aria-label="Toggle password visibility">
+              <span>👁️</span>
+            </button>
+          </div>
+          <div id="confirmPasswordError" class="field-error-msg"></div>
+        </div>
+
+        <button type="submit" id="submitBtn" class="btn btn-primary btn-block">
+          <span id="btnText">Create Account</span>
+          <span id="btnSpinner" style="display: none;">Registering...</span>
+        </button>
+      </form>
+
+      <div class="auth-footer">
+        Already have an account? <a href="login.html" class="auth-link">Sign In</a>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/register.js"></script>
+</body>
+</html>

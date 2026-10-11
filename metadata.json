@@ -1,0 +1,6 @@
+{
+  "name": "Contact Manager - Professional Contact Management System",
+  "description": "A professional Contact Management System with secure user authentication, contact CRUD, search, statistics, and Java Spring Boot backend architecture.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

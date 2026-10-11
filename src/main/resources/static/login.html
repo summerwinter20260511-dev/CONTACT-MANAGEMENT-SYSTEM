@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sign In - Contact Manager</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/auth.css">
+</head>
+<body>
+  <div class="auth-wrapper">
+    <div class="auth-card">
+      <div class="auth-header">
+        <div class="auth-brand-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+            <circle cx="9" cy="7" r="4"></circle>
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+          </svg>
+        </div>
+        <h1>Contact Manager</h1>
+        <p>Sign in to your account to manage your contacts</p>
+      </div>
+
+      <div id="authAlert" class="auth-alert" role="alert"></div>
+
+      <form id="loginForm" novalidate>
+        <div class="form-group" style="margin-bottom: 1.125rem;">
+          <label for="email" class="form-label">Email Address <span class="required-star">*</span></label>
+          <input
+            type="email"
+            id="email"
+            name="email"
+            class="form-input"
+            placeholder="name@company.com"
+            autocomplete="email"
+            required
+          >
+          <div id="emailError" class="field-error-msg"></div>
+        </div>
+
+        <div class="form-group" style="margin-bottom: 0.75rem;">
+          <label for="password" class="form-label">Password <span class="required-star">*</span></label>
+          <div class="password-input-group">
+            <input
+              type="password"
+              id="password"
+              name="password"
+              class="form-input"
+              placeholder="••••••••"
+              autocomplete="current-password"
+              required
+            >
+            <button type="button" id="togglePasswordBtn" class="password-toggle-btn" aria-label="Toggle password visibility">
+              <span id="eyeIcon">👁️</span>
+            </button>
+          </div>
+          <div id="passwordError" class="field-error-msg"></div>
+        </div>
+
+        <div class="auth-options">
+          <label class="remember-me-label">
+            <input type="checkbox" id="rememberMe" name="rememberMe">
+            <span>Remember me</span>
+          </label>
+          <a href="#" id="forgotPasswordLink" class="auth-link">Forgot password?</a>
+        </div>
+
+        <button type="submit" id="submitBtn" class="btn btn-primary btn-block">
+          <span id="btnText">Sign In</span>
+          <span id="btnSpinner" style="display: none;">Authenticating...</span>
+        </button>
+      </form>
+
+      <div class="auth-footer">
+        Don't have an account? <a href="register.html" class="auth-link">Create Account</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal for Forgot Password explanation -->
+  <div id="forgotPasswordModal" class="modal-backdrop">
+    <div class="modal-card" style="max-width: 440px;">
+      <div class="modal-header">
+        <h2>Password Recovery Notice</h2>
+        <button type="button" class="modal-close-btn" id="closeForgotModal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size: 0.875rem; color: var(--color-slate-600); margin-bottom: 0.75rem;">
+          Self-service password recovery is currently not configured for this installation.
+        </p>
+        <p style="font-size: 0.8125rem; color: var(--color-slate-500); line-height: 1.5;">
+          To prevent unauthorized account takeovers without a verified SMTP email service and signed password reset tokens, please contact your system administrator or register a new development account.
+        </p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" id="acknowledgeForgotBtn">Understood</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/login.js"></script>
+</body>
+</html>
